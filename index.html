@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Specaboo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Specaboo: a quiet page to type on. Everything stays in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Cpath d='M8 32C8 15 19 4 32 4s24 11 24 28v30q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0Z' fill='%23fff' stroke='%23272a4a' stroke-width='4'/%3E%3Cellipse cx='24' cy='30' rx='3.5' ry='4.5' fill='%23272a4a'/%3E%3Cellipse cx='40' cy='30' rx='3.5' ry='4.5' fill='%23272a4a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=DM+Mono:wght@400&display=swap">
+<style>
+/* Layout: one moonlit sheet, a single writing column, and a whisper of a bottom bar that fades while you type. */
+:root {
+  --paper: #f3f4fa;        /* misty periwinkle-white */
+  --ink: #272a4a;          /* deep indigo ink */
+  --muted: #7d80a3;        /* faded ink for UI */
+  --ghost: #ffffff;        /* the ghost's sheet */
+  --blush: #f4a6c0;        /* ghost cheeks, accent */
+  --glow: rgba(126, 132, 214, 0.16);
+  --select: rgba(244, 166, 192, 0.38);
+  --chip: rgba(39, 42, 74, 0.06);
+  --chip-hover: rgba(39, 42, 74, 0.11);
+
+  --f-mark: "Fredoka", "Baloo 2", ui-rounded, "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-text: "Literata", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --f-ui: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14152a; --ink: #dcdcf5; --muted: #7c7fa8; --ghost: #e9e7ff; --blush: #f08fb2;
+    --glow: rgba(178, 170, 255, 0.22); --select: rgba(240, 143, 178, 0.32);
+    --chip: rgba(220, 220, 245, 0.07); --chip-hover: rgba(220, 220, 245, 0.13);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #14152a; --ink: #dcdcf5; --muted: #7c7fa8; --ghost: #e9e7ff; --blush: #f08fb2;
+  --glow: rgba(178, 170, 255, 0.22); --select: rgba(240, 143, 178, 0.32);
+  --chip: rgba(220, 220, 245, 0.07); --chip-hover: rgba(220, 220, 245, 0.13);
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  transition: background-color .4s ease, color .4s ease;
+  overflow: hidden;
+}
+::selection { background: var(--select); }
+
+/* ---------- writing surface ---------- */
+.sheet {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#page {
+  width: 100%;
+  max-width: 40rem;
+  height: 100%;
+  box-sizing: border-box;
+  padding-block: clamp(3rem, 12vh, 8rem) 6.5rem;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--blush);
+  font-family: var(--f-text);
+  font-optical-sizing: auto;
+  font-size: clamp(1.0625rem, 0.95rem + 0.45vw, 1.3125rem);
+  line-height: 1.75;
+  letter-spacing: 0.002em;
+  scrollbar-width: thin;
+  scrollbar-color: var(--chip-hover) transparent;
+}
+#page::placeholder { color: var(--muted); opacity: .7; font-style: italic; }
+
+/* ---------- bottom bar ---------- */
+.bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: 12px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--paper) 55%, transparent);
+  font-size: 12px;
+  color: var(--muted);
+  transition: opacity .6s ease;
+}
+body.typing .bar { opacity: 0.12; }
+body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
+
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ghost {
+  width: 38px; height: 43px; flex: none;
+  filter: drop-shadow(0 4px 10px var(--glow));
+  animation: float 4.5s ease-in-out infinite;
+  cursor: pointer;
+  background: none; border: 0; padding: 0;
+  border-radius: 12px;
+}
+.ghost svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.ghost .body { fill: var(--ghost); stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; transition: fill .4s ease; }
+.ghost .eye { fill: var(--ink); transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
+.ghost .cheek { fill: var(--blush); opacity: .8; }
+.ghost .mouth { fill: var(--ink); transform-box: fill-box; transform-origin: center; transition: transform .25s ease; }
+.ghost.boo { animation: boo .7s ease; }
+.ghost.boo .mouth { transform: scale(1.7); }
+
+.wordmark {
+  font-family: var(--f-mark);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+.status {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color .3s ease;
+}
+.status.warn { color: var(--blush); }
+
+.tools { display: flex; align-items: center; gap: 6px; flex: none; }
+.count { font-variant-numeric: tabular-nums; padding-inline: 8px; white-space: nowrap; }
+.btn {
+  appearance: none;
+  border: 0;
+  background: var(--chip);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer;
+  transition: background-color .2s ease;
+}
+.btn:hover { background: var(--chip-hover); }
+.btn:focus-visible, .ghost:focus-visible { outline: 2px solid var(--blush); outline-offset: 2px; }
+.btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  transform: translate(-50%, 8px);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s ease, transform .25s ease;
+  max-width: calc(100% - 32px);
+  text-align: center;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 520px) {
+  .wordmark { font-size: 15px; }
+  .btn .label { display: none; }
+  .btn { padding: 0 9px; }
+  .count .extra { display: none; }
+}
+
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+@keyframes boo { 0% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-8px) rotate(-8deg); } 60% { transform: translateY(-3px) rotate(6deg); } 100% { transform: translateY(0) rotate(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost, .ghost .eye, .ghost.boo { animation: none; }
+  body, .bar, .toast { transition: none; }
+}
+</style>
+
+<main class="sheet">
+  <textarea id="page" spellcheck="true" autofocus aria-label="Your page"
+    placeholder="Start typing. Specaboo keeps this page safe in your browser, even if you close the tab."></textarea>
+</main>
+
+<footer class="bar">
+  <div class="brand">
+    <button class="ghost" id="ghost" type="button" aria-label="Say boo">
+      <svg viewBox="0 0 64 72" aria-hidden="true">
+        <path class="body" d="M8 32C8 15 19 4 32 4s24 11 24 28v30q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0Z"/>
+        <ellipse class="eye" cx="24" cy="30" rx="3.2" ry="4.2"/>
+        <ellipse class="eye" cx="40" cy="30" rx="3.2" ry="4.2"/>
+        <ellipse class="cheek" cx="18.5" cy="38" rx="3.6" ry="2.2"/>
+        <ellipse class="cheek" cx="45.5" cy="38" rx="3.6" ry="2.2"/>
+        <ellipse class="mouth" cx="32" cy="39.5" rx="2" ry="2.3"/>
+      </svg>
+    </button>
+    <div style="display:flex;flex-direction:column;min-width:0;line-height:1.25">
+      <span class="wordmark">Specaboo</span>
+      <span class="status" id="status" aria-live="polite">Ready when you are</span>
+    </div>
+  </div>
+  <div class="tools">
+    <span class="count" id="count">0 words<span class="extra"></span></span>
+    <button class="btn" id="theme" type="button" aria-label="Switch to dark mode">
+      <svg viewBox="0 0 24 24" id="themeIcon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+      <span class="label" id="themeLabel">Dark</span>
+    </button>
+    <button class="btn" id="download" type="button" aria-label="Download as .txt">
+      <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
+      <span class="label">.txt</span>
+    </button>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  const KEY = "specaboo:text";
+  const THEME_KEY = "specaboo:theme";
+  const page = document.getElementById("page");
+  const statusEl = document.getElementById("status");
+  const countEl = document.getElementById("count");
+  const ghost = document.getElementById("ghost");
+  const toastEl = document.getElementById("toast");
+  const themeBtn = document.getElementById("theme");
+  const themeLabel = document.getElementById("themeLabel");
+  const themeIcon = document.getElementById("themeIcon");
+  const root = document.documentElement;
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } }
+  };
+
+  // ---------- toast ----------
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  }
+  function boo() {
+    ghost.classList.remove("boo");
+    void ghost.offsetWidth;
+    ghost.classList.add("boo");
+  }
+  ghost.addEventListener("click", () => {
+    boo();
+    const lines = ["Boo!", "Keep going, it's looking good.", "Your words are safe with me.", "Still here. Still haunting."];
+    toast(lines[Math.floor(Math.random() * lines.length)]);
+  });
+
+  // ---------- counting ----------
+  function stats(text) {
+    const words = (text.match(/[\p{L}\p{N}][\p{L}\p{N}'’\-]*/gu) || []).length;
+    const chars = text.length;
+    const minutes = Math.max(1, Math.round(words / 230));
+    return { words, chars, minutes };
+  }
+  function renderCount() {
+    const { words, chars, minutes } = stats(page.value);
+    countEl.firstChild.nodeValue = `${words.toLocaleString()} ${words === 1 ? "word" : "words"}`;
+    countEl.lastChild.textContent = words ? ` · ${chars.toLocaleString()} chars · ${minutes} min read` : "";
+  }
+
+  // ---------- autosave ----------
+  let saveTimer, storageOk = true;
+  function setStatus(text, warn = false) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle("warn", warn);
+  }
+  function save() {
+    clearTimeout(saveTimer);
+    const ok = store.set(KEY, page.value);
+    if (ok) {
+      storageOk = true;
+      const t = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      setStatus(`Saved at ${t}`);
+    } else {
+      storageOk = false;
+      setStatus("Can't save in this browser. Download to keep it.", true);
+    }
+  }
+  function updateTitle() {
+    const first = page.value.split("\n").find(l => l.trim()) || "";
+    document.title = first ? `${first.trim().slice(0, 40)} · Specaboo` : "Specaboo";
+  }
+
+  let typingTimer;
+  page.addEventListener("input", () => {
+    renderCount();
+    updateTitle();
+    if (storageOk) setStatus("Saving…");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 500);
+    document.body.classList.add("typing");
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => document.body.classList.remove("typing"), 2500);
+  });
+  document.addEventListener("mousemove", () => document.body.classList.remove("typing"));
+  window.addEventListener("beforeunload", save);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
+
+  // keep tabs open in other windows in sync
+  window.addEventListener("storage", e => {
+    if (e.key === KEY && e.newValue !== null && e.newValue !== page.value) {
+      page.value = e.newValue; renderCount(); updateTitle(); setStatus("Updated from another tab");
+    }
+  });
+
+  // ---------- theme ----------
+  const darkMQ = window.matchMedia("(prefers-color-scheme: dark)");
+  function currentTheme() {
+    const t = root.getAttribute("data-theme");
+    if (t === "dark" || t === "light") return t;
+    return darkMQ.matches ? "dark" : "light";
+  }
+  const moon = '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>';
+  const sun = '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>';
+  function renderThemeBtn() {
+    const dark = currentTheme() === "dark";
+    themeIcon.innerHTML = dark ? sun : moon;
+    themeLabel.textContent = dark ? "Light" : "Dark";
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  }
+  const savedTheme = store.get(THEME_KEY);
+  if (savedTheme === "dark" || savedTheme === "light") root.setAttribute("data-theme", savedTheme);
+  themeBtn.addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    store.set(THEME_KEY, next);
+    renderThemeBtn();
+    page.focus();
+  });
+  darkMQ.addEventListener?.("change", renderThemeBtn);
+  new MutationObserver(renderThemeBtn).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // ---------- download ----------
+  // Inside a claude.ai artifact, files go through the viewer's download prompt.
+  // As a normal website, a plain blob link does the job.
+  const downloadsReady = (window.claude && typeof window.claude.use === "function")
+    ? window.claude.use("downloads").catch(() => null)
+    : Promise.resolve(null);
+  const inArtifact = !!(window.claude && window.claude.use);
+
+  function filename() {
+    const first = (page.value.split("\n").find(l => l.trim()) || "specaboo").trim();
+    const slug = first.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+    const d = new Date();
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    return `${slug || "specaboo"}-${date}.txt`;
+  }
+  async function copyFallback(msg) {
+    try { await navigator.clipboard.writeText(page.value); toast(msg); }
+    catch { page.focus(); page.select(); toast("Text selected. Press Ctrl+C (or ⌘C) to copy it."); }
+  }
+  async function download() {
+    if (!page.value.trim()) { toast("Nothing to download yet. Type something first."); return; }
+    const name = filename();
+    if (inArtifact) {
+      const dl = await downloadsReady;
+      if (dl) {
+        try { await dl.save({ filename: name, data: page.value }); boo(); toast(`Saved ${name}`); }
+        catch (e) {
+          if (e && e.code === "declined") return;
+          await copyFallback("Download isn't available here, so I copied your text instead.");
+        }
+        return;
+      }
+      await copyFallback("Download isn't available here, so I copied your text instead.");
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([page.value], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    boo();
+    toast(`Downloaded ${name}`);
+  }
+  document.getElementById("download").addEventListener("click", download);
+
+  // Ctrl/⌘+S downloads instead of the browser's "save page" dialog
+  document.addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); download(); }
+  });
+
+  // ---------- boot ----------
+  const saved = store.get(KEY);
+  if (saved) {
+    page.value = saved;
+    setStatus("Welcome back, your page is here");
+  }
+  if (store.set("specaboo:probe", "1") === false) {
+    storageOk = false;
+    setStatus("Can't save in this browser. Download to keep it.", true);
+  }
+  renderCount();
+  updateTitle();
+  renderThemeBtn();
+  page.focus();
+  page.setSelectionRange(page.value.length, page.value.length);
+})();
+</script>
+
+</body>
+</html>
