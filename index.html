@@ -8,7 +8,7 @@
 <title>Specaboo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Specaboo: a quiet page to type on. Everything stays in your browser.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 72'%3E%3Cpath d='M8 32C8 15 19 4 32 4s24 11 24 28v30q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0Z' fill='%23fff' stroke='%23272a4a' stroke-width='4'/%3E%3Cellipse cx='24' cy='30' rx='3.5' ry='4.5' fill='%23272a4a'/%3E%3Cellipse cx='40' cy='30' rx='3.5' ry='4.5' fill='%23272a4a'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='16 14 68 92'%3E%3Cpath d='M20 92V48a30 30 0 0 1 60 0v44a10 10 0 0 1-20 0a10 10 0 0 1-20 0a10 10 0 0 1-20 0Z' fill='%23fff' stroke='%231a1a1a' stroke-width='5' stroke-linejoin='round'/%3E%3Crect x='35' y='40' width='9' height='14' rx='4.5' fill='%231a1a1a'/%3E%3Crect x='56' y='40' width='9' height='14' rx='4.5' fill='%231a1a1a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,700;1,14..32,400&display=swap">
@@ -113,7 +113,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
 
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ghost {
-  width: 38px; height: 43px; flex: none;
+  width: 40px; height: 44px; flex: none;
   filter: drop-shadow(0 4px 10px var(--glow));
   animation: float 4.5s ease-in-out infinite;
   cursor: pointer;
@@ -121,12 +121,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   border-radius: 12px;
 }
 .ghost svg { width: 100%; height: 100%; overflow: visible; display: block; }
-.ghost .body { fill: var(--ghost); stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; transition: fill .4s ease; }
-.ghost .eye { fill: var(--ink); transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
-.ghost .cheek { fill: var(--blush); opacity: .45; }
-.ghost .mouth { fill: var(--ink); transform-box: fill-box; transform-origin: center; transition: transform .25s ease; }
-.ghost.boo { animation: boo .7s ease; }
-.ghost.boo .mouth { transform: scale(1.7); }
+.ghost { color: var(--ink); }
 
 .wordmark {
   font-family: var(--f-mark);
@@ -196,7 +191,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
 @keyframes boo { 0% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-8px) rotate(-8deg); } 60% { transform: translateY(-3px) rotate(6deg); } 100% { transform: translateY(0) rotate(0); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ghost, .ghost .eye, .ghost.boo { animation: none; }
+  .ghost, .ghost.boo { animation: none; }
   body, .bar, .toast { transition: none; }
 }
 </style>
@@ -209,14 +204,6 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
 <footer class="bar">
   <div class="brand">
     <button class="ghost" id="ghost" type="button" aria-label="Say boo">
-      <svg viewBox="0 0 64 72" aria-hidden="true">
-        <path class="body" d="M8 32C8 15 19 4 32 4s24 11 24 28v30q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0q-4 6-8 0q-4-6-8 0Z"/>
-        <ellipse class="eye" cx="24" cy="30" rx="3.2" ry="4.2"/>
-        <ellipse class="eye" cx="40" cy="30" rx="3.2" ry="4.2"/>
-        <ellipse class="cheek" cx="18.5" cy="38" rx="3.6" ry="2.2"/>
-        <ellipse class="cheek" cx="45.5" cy="38" rx="3.6" ry="2.2"/>
-        <ellipse class="mouth" cx="32" cy="39.5" rx="2" ry="2.3"/>
-      </svg>
     </button>
     <div style="display:flex;flex-direction:column;min-width:0;line-height:1.25">
       <span class="wordmark">Specaboo</span>
@@ -238,6 +225,194 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
 
 <div class="toast" id="toast" role="status"></div>
 
+<script>
+// Specaboo ghost kit: draws the Geometric ghost with any expression.
+// White body, dark outline and dark features in every theme. Floating text extras use currentColor.
+const GhostKit = (() => {
+  const RED = "var(--gk-red, #fb5151)", BLUE = "var(--gk-blue, #36a2eb)", GREEN = "var(--gk-green, #4cc07c)";
+  // The ghost itself never changes with the theme: white sheet, dark outline.
+  const INK = "var(--gk-ink, #1a1a1a)", WHITE = "var(--gk-body, #ffffff)";
+  const FRONT = new Set(["face", "peek", "cheeks", "mouth", "think", "cross", "facepalm", "heart", "clap", "typing", "pray", "rub"]);
+  const BODY = "M20 92V48a30 30 0 0 1 60 0v44a10 10 0 0 1-20 0a10 10 0 0 1-20 0a10 10 0 0 1-20 0Z";
+  const EL = [39.5, 47], ER = [60.5, 47];
+  let uid = 0;
+
+  // ---- eyes: return [maskMarkup (black = hole, white = solid), topMarkup (coloured)] ----
+  const S = (d, w = 3.4) => `<path d="${d}" fill="none" stroke="#000" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  function eye(type, cx, cy, side) {
+    const o = cx + side * 4.5, i = cx - side * 4.5; // outer / inner x
+    switch (type) {
+      case "open":   return [`<rect x="${cx-4.5}" y="${cy-7}" width="9" height="14" rx="4.5"/>`, ""];
+      case "small":  return [`<circle cx="${cx}" cy="${cy}" r="3.4"/>`, ""];
+      case "tiny":   return [`<circle cx="${cx}" cy="${cy+1}" r="2.2"/>`, ""];
+      case "wide":   return [`<rect x="${cx-5.5}" y="${cy-9}" width="11" height="18" rx="5.5"/>`, ""];
+      case "happy":  return [S(`M${cx-5} ${cy+2}Q${cx} ${cy-6} ${cx+5} ${cy+2}`), ""];
+      case "down":   return [S(`M${cx-5} ${cy-1}Q${cx} ${cy+5} ${cx+5} ${cy-1}`), ""];
+      case "shut":   return [S(`M${cx-5} ${cy+1}H${cx+5}`), ""];
+      case "half":   return [`<path d="M${cx-4.5} ${cy}H${cx+4.5}V${cy+3}a4.5 4.5 0 0 1-9 0Z"/>`, ""];
+      case "glare":  return [`<rect x="${cx-5.5}" y="${cy-1}" width="11" height="4.5" rx="2.2"/>`, ""];
+      case "angry":  return [`<path d="M${o} ${cy-7}L${i} ${cy-2}V${cy+3}Q${i} ${cy+7} ${cx} ${cy+7}Q${o} ${cy+7} ${o} ${cy+3}Z"/>`, ""];
+      case "sad":    return [`<path d="M${i} ${cy-7}L${o} ${cy-2}V${cy+3}Q${o} ${cy+7} ${cx} ${cy+7}Q${i} ${cy+7} ${i} ${cy+3}Z"/>`, ""];
+      case "chev":   return [S(`M${cx+side*4} ${cy-5}L${cx-side*4} ${cy}L${cx+side*4} ${cy+5}`), ""];
+      case "x":      return [S(`M${cx-4} ${cy-4}L${cx+4} ${cy+4}M${cx+4} ${cy-4}L${cx-4} ${cy+4}`), ""];
+      case "ring":   return [`<circle cx="${cx}" cy="${cy}" r="5.6" fill="none" stroke="#000" stroke-width="3"/>`, ""];
+      case "spiral": return [S(`M${cx} ${cy}m0 0a1.5 1.5 0 0 1 3 0a3 3 0 0 1-6 0a4.5 4.5 0 0 1 9 0`, 2.2), ""];
+      case "sparkle":return [`<circle cx="${cx}" cy="${cy}" r="6.2"/><circle cx="${cx+2.2}" cy="${cy-2.2}" r="2" fill="#fff"/><circle cx="${cx-2}" cy="${cy+2.6}" r="1" fill="#fff"/>`, ""];
+      case "lookL":  return [`<rect x="${cx-7}" y="${cy-6}" width="9" height="13" rx="4.5"/>`, ""];
+      case "lookR":  return [`<rect x="${cx-2}" y="${cy-6}" width="9" height="13" rx="4.5"/>`, ""];
+      case "lookU":  return [`<rect x="${cx-4.5}" y="${cy-10}" width="9" height="13" rx="4.5"/>`, ""];
+      case "lookD":  return [`<rect x="${cx-4.5}" y="${cy-3}" width="9" height="12" rx="4.5"/>`, ""];
+      case "heart":  return ["", heartPath(cx, cy + 1, 7.5, RED)];
+      case "star":   return ["", starPath(cx, cy, 7.5, BLUE)];
+      case "shades": return ["", ""];
+      default: return ["", ""];
+    }
+  }
+
+  // ---- mouths (mask, black = hole) and coloured tops ----
+  function mouth(type) {
+    const F = d => `<path d="${d}"/>`;
+    switch (type) {
+      case "smile":  return [S("M43 64Q50 71 57 64"), ""];
+      case "grin":   return [F("M41 62H59Q58 74 50 74Q42 74 41 62Z"), ""];
+      case "big":    return [F("M38 60H62Q60 79 50 79Q40 79 38 60Z"), ""];
+      case "frown":  return [S("M43 70Q50 63 57 70"), ""];
+      case "flat":   return [S("M44 67H56"), ""];
+      case "o":      return [`<ellipse cx="50" cy="67" rx="3" ry="3.6"/>`, ""];
+      case "O":      return [`<ellipse cx="50" cy="68" rx="6" ry="7.5"/>`, ""];
+      case "yawn":   return [`<ellipse cx="50" cy="69" rx="5.5" ry="9"/>`, ""];
+      case "wavy":   return [S("M41 67q2.25-3 4.5 0t4.5 0t4.5 0t4.5 0", 3), ""];
+      case "smirk":  return [S("M44 67Q52 69 57 62"), ""];
+      case "cat":    return [S("M42 64q4 5 8 0q4 5 8 0", 3), ""];
+      case "teeth":  return [`<rect x="39" y="61" width="22" height="11" rx="3.5"/><path d="M39 66.5H61M45.5 61V72M50 61V72M54.5 61V72" stroke="#fff" stroke-width="1.6"/>`, ""];
+      case "sadO":   return [F("M41 74Q42 62 50 62Q58 62 59 74Z"), ""];
+      case "tiny":   return [`<circle cx="50" cy="66" r="1.8"/>`, ""];
+      case "kiss":   return [S("M48 61q6 2 0 5q6 2 0 5", 3), ""];
+      case "pout":   return [S("M45 69Q50 65 55 69", 3), ""];
+      case "tongue": return [S("M42 63Q50 70 58 63"), `<path d="M50 66.5h5v4a2.5 2.5 0 0 1-5 0Z" fill="${RED}"/>`];
+      case "lol":    return [F("M41 62H59Q58 74 50 74Q42 74 41 62Z"), `<path d="M44 71Q50 66 56 71Q53 74 50 74Q47 74 44 71Z" fill="${RED}"/>`];
+      case "none":   return ["", ""];
+      default: return ["", ""];
+    }
+  }
+
+  // ---- arms: polylines from the shoulder, [left, right] ----
+  const D = { L: [24, 64, 12, 80], R: [76, 64, 88, 80] };
+  const ARMS = {
+    down: [D.L, D.R],
+    out: [[24, 63, 6, 60], [76, 63, 94, 60]],
+    up: [[24, 62, 9, 38], [76, 62, 91, 38]],
+    wave: [D.L, [76, 62, 93, 40]],
+    hips: [[24, 62, 9, 70, 19, 80], [76, 62, 91, 70, 81, 80]],
+    face: [[22, 74, 40, 49], [78, 74, 60, 49]],
+    peek: [[22, 74, 40, 49], D.R],
+    cheeks: [[21, 74, 29, 63], [79, 74, 71, 63]],
+    mouth: [D.L, [79, 78, 54, 68]],
+    shrug: [[24, 64, 9, 67, 7, 52], [76, 64, 91, 67, 93, 52]],
+    point: [D.L, [76, 62, 99, 55]],
+    pointUp: [D.L, [76, 62, 88, 52, 88, 30]],
+    think: [D.L, [80, 80, 60, 80, 56, 74]],
+    cross: [[21, 66, 63, 78], [79, 66, 37, 78]],
+    facepalm: [D.L, [80, 72, 60, 54, 50, 40]],
+    salute: [D.L, [76, 62, 86, 46, 70, 33]],
+    heart: [[22, 68, 44, 79], [78, 68, 56, 79]],
+    flex: [[24, 64, 7, 58, 11, 42], [76, 64, 93, 58, 89, 42]],
+    raise: [D.L, [76, 62, 89, 30]],
+    clap: [[21, 68, 47, 76], [79, 68, 53, 76]],
+    scratch: [D.L, [76, 62, 92, 40, 76, 20]],
+    hug: [[24, 62, 5, 50], [76, 62, 95, 50]],
+    typing: [[22, 70, 33, 87], [78, 70, 67, 87]],
+    pencil: [D.L, [76, 64, 90, 58]],
+    pray: [[21, 70, 48, 62], [79, 70, 52, 62]],
+    dance: [[24, 62, 8, 46], [76, 64, 93, 70]],
+    zombie: [[24, 60, 4, 56], [76, 60, 96, 56]],
+    rub: [[21, 72, 48, 70], [79, 72, 52, 72]],
+    none: [[], []],
+  };
+  const armPath = p => p.length ? "M" + p.join(" ").replace(/(\S+ \S+) /g, "$1L").replace(/L$/, "") : "";
+
+  // ---- extras (coloured or ink) ----
+  function heartPath(x, y, s, fill) {
+    const k = s / 10;
+    return `<path transform="translate(${x} ${y}) scale(${k})" d="M0 8C-9 2-10-4-6-7C-3-9 0-7 0-4C0-7 3-9 6-7C10-4 9 2 0 8Z" fill="${fill}"/>`;
+  }
+  function starPath(x, y, r, fill) {
+    const p = [];
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .45 : r; p.push((x + rr * Math.cos(a)).toFixed(1) + "," + (y + rr * Math.sin(a)).toFixed(1)); }
+    return `<polygon points="${p.join(" ")}" fill="${fill}" stroke="${fill}" stroke-width="1" stroke-linejoin="round"/>`;
+  }
+  const twinkle = (x, y, s, fill) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0-5L1.3-1.3L5 0L1.3 1.3L0 5L-1.3 1.3L-5 0L-1.3-1.3Z" fill="${fill}"/>`;
+  const drop = (x, y, s, fill) => `<path transform="translate(${x} ${y}) scale(${s})" d="M0-6C2 -2 4 0 4 2.5A4 4 0 0 1-4 2.5C-4 0-2-2 0-6Z" fill="${fill}"/>`;
+  const txt = (x, y, t, size, fill = "currentColor", w = 700) => `<text x="${x}" y="${y}" font-family="Inter, Arial, sans-serif" font-weight="${w}" font-size="${size}" fill="${fill}" text-anchor="middle">${t}</text>`;
+  const line = (d, c = "currentColor", w = 2.6) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  const EXTRAS = {
+    blush: () => `<ellipse cx="30" cy="58" rx="5" ry="3" fill="${RED}" opacity=".7"/><ellipse cx="70" cy="58" rx="5" ry="3" fill="${RED}" opacity=".7"/>`,
+    tear: () => drop(34, 60, .8, BLUE),
+    tears: () => `<path d="M36 54v26a3 3 0 0 0 6 0V54Z" fill="${BLUE}" opacity=".9"/><path d="M58 54v26a3 3 0 0 0 6 0V54Z" fill="${BLUE}" opacity=".9"/>`,
+    joy: () => drop(28, 44, .7, BLUE) + drop(72, 44, .7, BLUE),
+    sweat: () => drop(82, 26, 1.1, BLUE),
+    hearts: () => heartPath(12, 22, 7, RED) + heartPath(88, 16, 9, RED) + heartPath(92, 36, 5, RED),
+    heart: () => heartPath(84, 14, 10, RED),
+    heartChest: () => heartPath(50, 80, 9, RED),
+    broken: () => `<g transform="translate(84 16)"><path d="M0 8C-9 2-10-4-6-7C-3-9 0-7 0-4L-2 0L1 3Z" fill="${RED}"/><path d="M1.5 8.5C10 2 10.5-4 6.5-7C3.5-9 1-7 1-4.5L-.5 0L2.5 3Z" fill="${RED}" transform="translate(2 1) rotate(10)"/></g>`,
+    sparkles: () => twinkle(10, 26, 1.1, BLUE) + twinkle(90, 20, 1.4, BLUE) + twinkle(88, 94, .9, BLUE),
+    anger: () => `<g transform="translate(80 22)" stroke="${RED}" stroke-width="2.6" stroke-linecap="round" fill="none"><path d="M-6-2q4 0 4-4M2-6q0 4 4 4M6 2q-4 0-4 4M-2 6q0-4-4-4"/></g>`,
+    zzz: () => txt(84, 22, "z", 11, "currentColor") + txt(92, 10, "Z", 15, "currentColor"),
+    question: () => txt(88, 24, "?", 22),
+    exclaim: () => txt(87, 24, "!", 24),
+    note: () => txt(88, 26, "♪", 20) + txt(10, 34, "♫", 14),
+    steam: () => line("M14 20q-4-4 0-8t0-8") + line("M86 20q4-4 0-8t0-8"),
+    idea: () => `<g transform="translate(50 4)"><circle r="6" fill="${BLUE}"/>${line("M-11 0h-3M11 0h3M-8-8l-2-2M8-8l2-2M0-10v-3", BLUE, 2.2)}</g>`,
+    dizzy: () => twinkle(30, 10, .9, BLUE) + twinkle(52, 4, 1.1, BLUE) + twinkle(72, 10, .9, BLUE) + line("M24 12q26-14 54 0", "currentColor", 1.4),
+    shiver: () => line("M6 50l-4 4 4 4-4 4") + line("M94 50l4 4-4 4 4 4"),
+    waves: () => line("M96 30q4 6 2 12", BLUE) + line("M90 24q8 4 10 12", BLUE),
+    motion: () => line("M40 86l-4 6M50 88v7M60 86l4 6", BLUE),
+    dots: () => `<circle cx="74" cy="12" r="2.6" fill="currentColor"/><circle cx="83" cy="12" r="2.6" fill="currentColor"/><circle cx="92" cy="12" r="2.6" fill="currentColor"/>`,
+    cloud: () => `<g transform="translate(50 2)" fill="currentColor" opacity=".35"><circle cx="-8" cy="2" r="6"/><circle cx="2" cy="-1" r="8"/><circle cx="11" cy="3" r="5"/><rect x="-14" y="2" width="30" height="6" rx="3"/></g>` + drop(42, 18, .5, BLUE) + drop(54, 20, .5, BLUE),
+    confetti: () => `<rect x="8" y="14" width="5" height="3" fill="${RED}" transform="rotate(30 10 15)"/><rect x="86" y="10" width="5" height="3" fill="${BLUE}" transform="rotate(-20 88 11)"/><rect x="92" y="34" width="5" height="3" fill="${GREEN}" transform="rotate(50 94 35)"/><rect x="4" y="38" width="5" height="3" fill="${BLUE}"/><circle cx="20" cy="6" r="2" fill="${GREEN}"/><circle cx="76" cy="4" r="2" fill="${RED}"/>`,
+    pencil: () => `<g transform="translate(92 54) rotate(30)"><rect x="-3" y="-20" width="6" height="22" rx="1" fill="${BLUE}"/><path d="M-3 2h6l-3 7Z" fill="currentColor"/></g>`,
+    keyboard: () => `<rect x="26" y="86" width="48" height="12" rx="3" fill="${BLUE}"/><path d="M31 90.5h38M31 94h38" stroke="#ffffff" stroke-width="1.4" stroke-dasharray="3 2"/>`,
+    paper: () => `<g transform="translate(12 60) rotate(-10)"><rect x="-8" y="-11" width="16" height="22" rx="1.5" fill="#ffffff" stroke="currentColor" stroke-width="2"/><path d="M-4-5h8M-4 0h8M-4 5h5" stroke="${BLUE}" stroke-width="1.6"/></g>`,
+    check: () => `<g transform="translate(86 16)"><circle r="9" fill="${GREEN}"/>${line("M-4 0l3 3 5-6", "#ffffff", 2.6)}</g>`,
+    fire: () => `<path d="M86 30C78 26 78 16 84 8C84 14 88 14 88 10C94 16 94 26 86 30Z" fill="${RED}"/>`,
+    shades: () => `<path d="M30 42H70V47Q70 54 63 54Q57 54 56 47H44Q43 54 37 54Q30 54 30 47Z" fill="${BLUE}"/><path d="M33 44h4" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round"/>`,
+    smoke: () => `<g fill="currentColor" opacity=".3"><circle cx="44" cy="10" r="5"/><circle cx="54" cy="6" r="6"/><circle cx="62" cy="12" r="4"/></g>`,
+    wind: () => line("M2 58h10M0 66h14M4 74h8", "currentColor", 2),
+    sick: () => `<ellipse cx="30" cy="58" rx="6" ry="3" fill="${GREEN}" opacity=".8"/><ellipse cx="70" cy="58" rx="6" ry="3" fill="${GREEN}" opacity=".8"/>`,
+    halo: () => `<ellipse cx="50" cy="8" rx="16" ry="4" fill="none" stroke="${BLUE}" stroke-width="3"/>`,
+    horns: () => `<path d="M30 26L24 10L38 20Z M70 26L76 10L62 20Z" fill="${RED}"/>`,
+    crown: () => `<path d="M36 18L34 4L43 11L50 2L57 11L66 4L64 18Z" fill="${BLUE}"/>`,
+    party: () => `<path d="M42 19L52 -6L62 19Z" fill="${BLUE}"/><circle cx="52" cy="-6" r="3" fill="${RED}"/>`,
+  };
+
+  // spec: {eyes:"open" | "open|happy", mouth, arms, extras:"a b", tilt, squash:[sx,sy], dy, fade}
+  function svg(spec, opts = {}) {
+    const [eL, eR] = (spec.eyes || "open").split("|");
+    const left = eye(eL, EL[0], EL[1], -1), right = eye(eR || eL, ER[0], ER[1], 1);
+    const m = mouth(spec.mouth || "none");
+    const [aL, aR] = ARMS[spec.arms || "down"];
+    const arms = [armPath(aL), armPath(aR)].filter(Boolean);
+    const front = FRONT.has(spec.arms || "down");
+    const armMarkup = arms.map(d => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>`).join("") +
+      arms.map(d => `<path d="${d}" fill="none" stroke="${WHITE}" stroke-width="6.4" stroke-linecap="round" stroke-linejoin="round"/>`).join("");
+    const extras = (spec.extras || "").split(/\s+/).filter(Boolean).map(k => EXTRAS[k] ? EXTRAS[k]() : "").join("");
+    const ink = str => str.replace(/#000/g, INK).replace(/#fff\b/g, WHITE);
+    const t = [];
+    if (spec.dy) t.push(`translate(0 ${spec.dy})`);
+    if (spec.tilt) t.push(`rotate(${spec.tilt} 50 70)`);
+    if (spec.squash) t.push(`translate(50 102) scale(${spec.squash[0]} ${spec.squash[1]}) translate(-50 -102)`);
+    const size = opts.size ? ` width="${opts.size}" height="${opts.size}"` : "";
+    return `<svg viewBox="-6 -14 112 124"${size} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${opts.label || "Specaboo ghost"}">` +
+      `<g transform="${t.join(" ")}"${spec.fade ? ` opacity="${spec.fade}"` : ""}>` +
+      (front ? "" : armMarkup) +
+      `<path d="${BODY}" fill="${WHITE}" stroke="${INK}" stroke-width="3.4" stroke-linejoin="round"/>` +
+      (front ? armMarkup : "") +
+      `<g fill="${INK}">${ink(left[0])}${ink(right[0])}${ink(m[0])}</g>${left[1]}${right[1]}${m[1]}${extras}</g></svg>`;
+  }
+  return { svg, ARMS: Object.keys(ARMS), EXTRAS: Object.keys(EXTRAS) };
+})();
+</script>
 <script>
 (() => {
   const KEY = "specaboo:text";
@@ -265,7 +440,23 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
   }
-  function boo() {
+  // ---------- ghost moods ----------
+  const MOODS = {
+    idle:   { eyes: "open", mouth: "smile", arms: "down" },
+    typing: { eyes: "lookD", mouth: "smile", arms: "typing" },
+    saved:  { eyes: "happy", mouth: "grin", arms: "up" },
+    boo:    { eyes: "open", mouth: "big", arms: "up" },
+    proud:  { eyes: "happy", mouth: "big", arms: "flex" },
+    worried:{ eyes: "sad", mouth: "wavy", arms: "cheeks" }
+  };
+  let moodTimer, baseMood = "idle";
+  function setMood(name, ms) {
+    clearTimeout(moodTimer);
+    ghost.innerHTML = GhostKit.svg(MOODS[name], { label: "Specaboo ghost" });
+    if (ms) moodTimer = setTimeout(() => setMood(baseMood), ms);
+  }
+  function boo(mood = "boo") {
+    setMood(mood, 1400);
     ghost.classList.remove("boo");
     void ghost.offsetWidth;
     ghost.classList.add("boo");
@@ -302,9 +493,12 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
       storageOk = true;
       const t = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       setStatus(`Saved at ${t}`);
+      baseMood = "idle";
+      setMood("saved", 1200);
     } else {
       storageOk = false;
       setStatus("Can't save in this browser. Download to keep it.", true);
+      baseMood = "worried"; setMood("worried");
     }
   }
   function updateTitle() {
@@ -320,6 +514,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
     clearTimeout(saveTimer);
     saveTimer = setTimeout(save, 500);
     document.body.classList.add("typing");
+    if (baseMood !== "typing") { baseMood = "typing"; setMood("typing"); }
     clearTimeout(typingTimer);
     typingTimer = setTimeout(() => document.body.classList.remove("typing"), 2500);
   });
@@ -386,7 +581,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
     if (inArtifact) {
       const dl = await downloadsReady;
       if (dl) {
-        try { await dl.save({ filename: name, data: page.value }); boo(); toast(`Saved ${name}`); }
+        try { await dl.save({ filename: name, data: page.value }); boo("proud"); toast(`Saved ${name}`); }
         catch (e) {
           if (e && e.code === "declined") return;
           await copyFallback("Download isn't available here, so I copied your text instead.");
@@ -401,7 +596,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
     a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    boo();
+    boo("proud");
     toast(`Downloaded ${name}`);
   }
   document.getElementById("download").addEventListener("click", download);
@@ -421,6 +616,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
     storageOk = false;
     setStatus("Can't save in this browser. Download to keep it.", true);
   }
+  setMood(baseMood);
   renderCount();
   updateTitle();
   renderThemeBtn();
