@@ -111,4 +111,28 @@ const MOODS = [
   ["Inspired","Writing","star","grin","up","idea"],
   ["Oops","Writing","wide","teeth","mouth","sweat"],
 ];
-if (typeof module !== "undefined") module.exports = MOODS;
+
+// Motion loop for each mood: [body motion, seconds]. Group default first, then per-mood overrides.
+const GROUP_MOTION = {
+  Happy: ["bounce", 1.2], Love: ["sway", 2.4], Sad: ["droop", 3], Angry: ["shake", 1.5], Scared: ["tremble", 1.2],
+  Surprised: ["pop", 1.6], Silly: ["wobble", 1.2], Tired: ["breathe", 3], Thinking: ["lean", 2.4], Gestures: ["bob", 1.6], Writing: ["bob", 1.6],
+};
+const MOOD_MOTION = {
+  "Happy": ["bob", 2], "Ecstatic": ["hop", 1.2], "Excited": ["hop", 1], "Proud": ["bob", 2.4], "Grateful": ["nod", 2], "Smug": ["sway", 3], "Confident": ["bob", 2.4], "Laughing": ["bounce", 1],
+  "Kissy": ["pop", 1.8], "Hug me": ["bounce", 1.6], "Heartbroken": ["droop", 3], "Flirty": ["sway", 2],
+  "Crying": ["tremble", 1.5], "Sobbing": ["tremble", 1.2], "Lonely": ["float", 3], "Pouting": ["stomp", 2], "Hurt": ["droop", 2.5],
+  "Furious": ["stomp", 1], "Raging": ["shake", 1], "Grumpy": ["droop", 3], "Stubborn": ["sway", 3], "Annoyed": ["nod", 2],
+  "Shy": ["sway", 2.6], "Worried": ["tremble", 2], "Panicked": ["hop", 1], "Awkward": ["sway", 2.4], "Nervous": ["tremble", 1.6],
+  "Speechless": ["bob", 3], "Startled": ["hop", 1.4], "Starstruck": ["bounce", 1.4],
+  "Boo!": ["boo", 1.4], "Dizzy": ["dizzy", 2], "Cool": ["nod", 2], "Dancing": ["wobble", 1], "Singing": ["sway", 1.6], "Spooky": ["float", 3], "Angel": ["float", 3], "Little devil": ["stomp", 1.6], "Kitty": ["sway", 2], "Party time": ["hop", 1.2],
+  "Asleep": ["breathe", 3], "Yawning": ["breathe", 2.5], "Sick": ["droop", 2.5], "Burnt out": ["droop", 3], "Meh": ["droop", 3],
+  "Idea!": ["pop", 1.4], "Curious": ["lean", 2], "Confused": ["sway", 2.2], "Daydreaming": ["float", 3], "Unsure": ["sway", 2.4],
+  "Hello": ["bob", 1.2], "Thumbs up": ["bounce", 1.2], "Clapping": ["bounce", 1], "Hand up": ["hop", 1.4], "Facepalm": ["droop", 2.4], "Pretty please": ["bounce", 1.4], "Waiting": ["nod", 2.4], "Shrug": ["bob", 2], "Salute": ["nod", 1.6],
+  "Typing": ["bob", 1], "Writing": ["bob", 1.4], "Saved!": ["hop", 1.2], "Writer's block": ["droop", 3], "Deadline": ["tremble", 1], "In the flow": ["bob", 1.2], "Goal reached": ["hop", 1], "Inspired": ["pop", 1.4], "Oops": ["tremble", 1.2],
+};
+function moodSpec(m) {
+  const [motion, d] = MOOD_MOTION[m[0]] || GROUP_MOTION[m[1]] || ["bob", 2];
+  return Object.assign({ eyes: m[2], mouth: m[3], arms: m[4], extras: m[5] || "", motion, d }, m[6] || {});
+}
+
+if (typeof module !== "undefined") module.exports = { MOODS, moodSpec };
