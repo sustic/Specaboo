@@ -247,23 +247,29 @@ const GhostKit = (() => {
     const pose = spec.arms || "down";
     const left = eye(eL, EL[0], EL[1], -1), right = eye(eR, ER[0], ER[1], 1);
     const m = mouth(spec.mouth || "none");
-    const front = FRONT.has(pose);
+    // opts.armPts / opts.front / opts.face / opts.xop / opts.squish let a caller draw in-between frames
+    const front = opts.front ?? FRONT.has(pose);
+    const face = opts.face ?? 1;
     const ink = str => str.replace(/#000/g, INK).replace(/#fff\b/g, WHITE);
     const pivot = (x, y, cls, inner, style = "") => `<g transform="translate(${x} ${y})"><g class="${cls}"${style}><g transform="translate(${-x} ${-y})">${inner}</g></g></g>`;
     const [motL, motR] = ARM_MOTION[pose] || ["swing", "swing"];
-    const armMarkup = ARMS[pose].map((p, i) => {
+    const armMarkup = (opts.armPts || ARMS[pose]).map((p, i) => {
       if (!p.length) return "";
       const d = armPath(p);
       const inner = `<path d="${d}" fill="none" stroke="${INK}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${WHITE}" stroke-width="6.4" stroke-linecap="round" stroke-linejoin="round"/>`;
       return pivot(p[0], p[1], `gk-arm gk-arm-${i ? "R" : "L"} gk-am-${i ? motR : motL}`, inner, ` style="--dir:${i ? -1 : 1}"`);
     }).join("");
-    const eyeG = (e, t, c) => pivot(c[0], c[1], `gk-eye gk-em-${EYE_MOTION[t] || "none"}`, `<g fill="${INK}">${ink(e[0])}</g>${e[1]}`);
-    const mouthG = pivot(50, 67, `gk-mouth gk-mm-${MOUTH_MOTION[spec.mouth] || "none"}`, `<g fill="${INK}">${ink(m[0])}</g>${m[1]}`);
-    const extras = (spec.extras || "").split(/\s+/).filter(Boolean).map(k => EXTRAS[k] ? `<g class="gk-x gk-x-${k}">${EXTRAS[k]().map(part => `<g>${part}</g>`).join("")}</g>` : "").join("");
+    const sq = (x, y, inner) => face === 1 ? inner : `<g transform="translate(${x} ${y}) scale(${Math.max(face, .02)} ${Math.max(face, .02)}) translate(${-x} ${-y})">${inner}</g>`;
+    const eyeG = (e, t, c) => sq(c[0], c[1], pivot(c[0], c[1], `gk-eye gk-em-${EYE_MOTION[t] || "none"}`, `<g fill="${INK}">${ink(e[0])}</g>${e[1]}`));
+    const mouthG = sq(50, 67, pivot(50, 67, `gk-mouth gk-mm-${MOUTH_MOTION[spec.mouth] || "none"}`, `<g fill="${INK}">${ink(m[0])}</g>${m[1]}`));
+    const xop = opts.xop ?? 1;
+    const extras = xop <= 0 ? "" : `<g${xop < 1 ? ` opacity="${xop.toFixed(3)}"` : ""}>` + (spec.extras || "").split(/\s+/).filter(Boolean).map(k => EXTRAS[k] ? `<g class="gk-x gk-x-${k}">${EXTRAS[k]().map(part => `<g>${part}</g>`).join("")}</g>` : "").join("") + `</g>`;
     const t = [];
     if (spec.dy) t.push(`translate(0 ${spec.dy})`);
     if (spec.tilt) t.push(`rotate(${spec.tilt} 50 70)`);
-    if (spec.squash) t.push(`translate(50 102) scale(${spec.squash[0]} ${spec.squash[1]}) translate(-50 -102)`);
+    const sqs = spec.squash || [1, 1], sqo = opts.squish || [1, 1];
+    const sx = sqs[0] * sqo[0], sy = sqs[1] * sqo[1];
+    if (sx !== 1 || sy !== 1) t.push(`translate(50 102) scale(${sx.toFixed(4)} ${sy.toFixed(4)}) translate(-50 -102)`);
     const size = opts.size ? ` width="${opts.size}" height="${opts.size}"` : "";
     const motion = opts.still ? "still" : (spec.motion || "bob");
     const dur = spec.d || 2;
@@ -272,7 +278,7 @@ const GhostKit = (() => {
       (front ? armMarkup : "") +
       eyeG(left, eL, EL) + eyeG(right, eR, ER) + mouthG + extras;
     return `<svg viewBox="-6 -14 112 124"${size} xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${opts.label || "Specaboo ghost"}" class="gk${opts.still ? " gk-still" : ""}" style="--d:${dur}s">` +
-      `<g transform="${t.join(" ")}"${spec.fade ? ` opacity="${spec.fade}"` : ""}>` +
+      `<g transform="${t.join(" ")}"${spec.fade && spec.fade < 1 ? ` opacity="${(+spec.fade).toFixed(3)}"` : ""}>` +
       pivot(50, 102, `gk-body gk-bm-${motion}`, content) + `</g></svg>`;
   }
 
@@ -408,7 +414,12 @@ const GhostKit = (() => {
     if (typeof document === "undefined" || document.getElementById("gk-css")) return;
     const st = document.createElement("style"); st.id = "gk-css"; st.textContent = css; document.head.append(st);
   }
-  return { svg, css, injectCss, ARMS: Object.keys(ARMS), EXTRAS: Object.keys(EXTRAS) };
+  // For morphing: the arm polylines of a pose (padded to 3 points each) and whether the arms sit in front.
+  function pose(name) {
+    const pad = p => p.length === 4 ? [p[0], p[1], (p[0] + p[2]) / 2, (p[1] + p[3]) / 2, p[2], p[3]] : p.slice();
+    return { arms: (ARMS[name] || ARMS.down).map(pad), front: FRONT.has(name) };
+  }
+  return { svg, css, injectCss, pose, ARMS: Object.keys(ARMS), EXTRAS: Object.keys(EXTRAS) };
 })();
 
 // [name, group, eyes, mouth, arms, extras, options]
