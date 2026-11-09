@@ -11,7 +11,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='16 14 68 92'%3E%3Cpath d='M20 92V48a30 30 0 0 1 60 0v44a10 10 0 0 1-20 0a10 10 0 0 1-20 0a10 10 0 0 1-20 0Z' fill='%23fff' stroke='%231a1a1a' stroke-width='5' stroke-linejoin='round'/%3E%3Crect x='35' y='40' width='9' height='14' rx='4.5' fill='%231a1a1a'/%3E%3Crect x='56' y='40' width='9' height='14' rx='4.5' fill='%231a1a1a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,700;1,14..32,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: one clean sheet in SwipeSpec's palette, a single writing column, and a quiet bottom bar that fades while you type. */
 :root {
@@ -27,17 +27,25 @@
   --chip-hover: rgba(26, 26, 26, 0.11);
   --solid: #1a1a1a;        /* dark pill button */
   --on-solid: #f6f6f6;
+  --code-bg: #ececec;
+  --code-line: #e0e0e0;
+  --syn-keyword: #7a45e6;  /* SwipeSpec purple, deepened for light paper */
+  --syn-string: #23864f;   /* SwipeSpec green, deepened */
+  --syn-number: #1f7fc4;   /* SwipeSpec blue, deepened */
+  --syn-title: #1f7fc4;
+  --syn-attr: #c23a3a;     /* SwipeSpec red, deepened */
 
   --f-mark: "Inter", Arial, sans-serif;
   --f-text: "Inter", Arial, sans-serif;
   --f-ui: "Inter", Arial, sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --paper: #1a1a1a; --ink: #f6f6f6; --muted: #8f8f8f; --ghost: #f6f6f6; --blush: #fb5151; --accent: #36a2eb;
     --glow: rgba(246, 246, 246, 0.14); --select: rgba(54, 162, 235, 0.35);
     --chip: rgba(246, 246, 246, 0.08); --chip-hover: rgba(246, 246, 246, 0.15);
-    --solid: #f6f6f6; --on-solid: #1a1a1a;
+    --solid: #f6f6f6; --on-solid: #1a1a1a; --code-bg: #232323; --code-line: #2e2e2e; --syn-keyword: #b28cff; --syn-string: #6fd49a; --syn-number: #6cc0f5; --syn-title: #6cc0f5; --syn-attr: #ff8a8a;
     color-scheme: dark;
   }
 }
@@ -45,7 +53,7 @@
   --paper: #1a1a1a; --ink: #f6f6f6; --muted: #8f8f8f; --ghost: #f6f6f6; --blush: #fb5151; --accent: #36a2eb;
   --glow: rgba(246, 246, 246, 0.14); --select: rgba(54, 162, 235, 0.35);
   --chip: rgba(246, 246, 246, 0.08); --chip-hover: rgba(246, 246, 246, 0.15);
-  --solid: #f6f6f6; --on-solid: #1a1a1a;
+  --solid: #f6f6f6; --on-solid: #1a1a1a; --code-bg: #232323; --code-line: #2e2e2e; --syn-keyword: #b28cff; --syn-string: #6fd49a; --syn-number: #6cc0f5; --syn-title: #6cc0f5; --syn-attr: #ff8a8a;
   color-scheme: dark;
 }
 
@@ -77,7 +85,10 @@ body {
   padding-block: clamp(3rem, 12vh, 8rem) 6.5rem;
   border: 0;
   outline: none;
-  resize: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
   background: transparent;
   color: var(--ink);
   caret-color: var(--accent);
@@ -89,7 +100,55 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--chip-hover) transparent;
 }
-#page::placeholder { color: var(--muted); opacity: .7; font-style: italic; }
+#page.is-empty::before { content: attr(data-placeholder); color: var(--muted); opacity: .7; font-style: italic; pointer-events: none; position: absolute; max-width: inherit; }
+#page.is-empty { position: relative; }
+
+/* live styling of the Markdown-ish source */
+#page .mk { color: var(--muted); opacity: .55; font-weight: 400; }
+#page .fb { font-weight: 700; }
+#page .fi { font-style: italic; }
+#page .fs { text-decoration: line-through; text-decoration-color: var(--muted); }
+#page .ic { font-variant-ligatures: none; font-family: var(--f-code); font-size: .86em; background: var(--code-bg); border-radius: 4px; padding: .05em .25em; }
+#page .hd { font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; }
+#page .h1 { font-size: 1.85em; }
+#page .h2 { font-size: 1.45em; }
+#page .h3 { font-size: 1.2em; }
+#page .hd .mk { font-size: .6em; vertical-align: .2em; }
+#page .lm { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+#page .cb {
+  display: block;
+  position: relative;
+  margin-block: .4em;
+  padding: .85em 1em;
+  border-radius: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-line);
+  font-family: var(--f-code);
+  font-size: .8em;
+  line-height: 1.6;
+  letter-spacing: 0;
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+}
+#page .cb::after {
+  content: attr(data-lang);
+  position: absolute; top: .55em; right: .8em;
+  font-family: var(--f-ui); font-size: 11px; font-weight: 500;
+  color: var(--muted);
+  pointer-events: none; user-select: none;
+}
+#page .cb .fence { color: var(--muted); opacity: .55; font-size: .9em; }
+#page .ln:not(.cur) .mk, #page .cb:not(.cur) .fence { display: none; }
+
+/* syntax colours from SwipeSpec's palette */
+#page .hljs-keyword, #page .hljs-selector-tag, #page .hljs-meta .hljs-keyword, #page .hljs-doctag { color: var(--syn-keyword); }
+#page .hljs-string, #page .hljs-regexp, #page .hljs-meta .hljs-string, #page .hljs-addition, #page .hljs-template-tag { color: var(--syn-string); }
+#page .hljs-number, #page .hljs-literal, #page .hljs-symbol, #page .hljs-bullet, #page .hljs-variable.language_ { color: var(--syn-number); }
+#page .hljs-title, #page .hljs-title.function_, #page .hljs-title.class_, #page .hljs-section, #page .hljs-selector-id, #page .hljs-selector-class { color: var(--syn-title); }
+#page .hljs-built_in, #page .hljs-type, #page .hljs-attr, #page .hljs-attribute, #page .hljs-name, #page .hljs-property, #page .hljs-tag { color: var(--syn-attr); }
+#page .hljs-comment, #page .hljs-quote { color: var(--muted); font-style: italic; }
+#page .hljs-deletion { color: var(--blush); }
+#page .hljs-meta, #page .hljs-params, #page .hljs-variable, #page .hljs-template-variable, #page .hljs-subst, #page .hljs-punctuation { color: inherit; }
 
 /* ---------- bottom bar ---------- */
 .bar {
@@ -211,6 +270,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   transform: translateX(-50%) rotate(45deg);
   border-radius: 2px;
 }
+.fmt[hidden] { display: none; }
 .fmt.below { transform: translate(-50%, 0); }
 .fmt.below::after { bottom: auto; top: -5px; }
 .fmt button {
@@ -244,8 +304,8 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
 </style>
 
 <main class="sheet">
-  <textarea id="page" spellcheck="true" autofocus aria-label="Your page"
-    placeholder="Start typing. Specaboo keeps this page safe in your browser, even if you close the tab."></textarea>
+  <div id="page" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Your page"
+    data-placeholder="Start typing. Specaboo keeps this page safe in your browser, even if you close the tab."></div>
 </main>
 
 <footer class="bar">
@@ -274,7 +334,7 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   <button type="button" class="b" data-mark="*" title="Bold (Ctrl+B)" aria-label="Bold">B</button>
   <button type="button" class="i" data-mark="_" title="Italic (Ctrl+I)" aria-label="Italic">I</button>
   <button type="button" class="s" data-mark="~" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough">S</button>
-  <button type="button" class="m" data-mark="```" title="Code (Ctrl+Shift+M)" aria-label="Code">&lt;/&gt;</button>
+  <button type="button" class="m" data-code="1" title="Code: a code block for whole lines, inline code for a few words (Ctrl+Shift+M)" aria-label="Code">&lt;/&gt;</button>
   <span class="sep" aria-hidden="true"></span>
   <button type="button" class="h" data-line="h1" title="Heading 1 (Ctrl+Alt+1)" aria-label="Heading 1">H1</button>
   <button type="button" class="h" data-line="h2" title="Heading 2 (Ctrl+Alt+2)" aria-label="Heading 2">H2</button>
@@ -629,11 +689,262 @@ const GhostKit = (() => {
   return { svg, css, injectCss, ARMS: Object.keys(ARMS), EXTRAS: Object.keys(EXTRAS) };
 })();
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+// Specaboo's writing surface: a contenteditable that keeps the text as plain Markdown-ish source
+// and re-renders it with live styling (headings, bold, lists, highlighted code blocks).
+// It exposes a small textarea-like API (value, selectionStart/End, setSelectionRange, setRangeText…).
+const SpecEditor = (el) => {
+  const LANGS = ["javascript", "typescript", "python", "bash", "shell", "json", "xml", "css", "scss", "sql", "java", "kotlin", "swift", "go", "rust", "c", "cpp", "csharp", "php", "ruby", "yaml", "ini", "dockerfile", "diff", "graphql", "lua", "r", "perl", "objectivec", "makefile"];
+  const hl = () => (typeof hljs !== "undefined" ? hljs : null);
+  let text = "";
+  let lastSel = [0, 0];
+  const hlCache = new Map(); // highlighting is the slow part, so remember results per block
+
+  // ---------- rendering ----------
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const FENCE_OPEN = /^```([\w+#.-]*)\s*$/, FENCE_CLOSE = /^```\s*$/;
+
+  // Split the text into prose and fenced code blocks: [{type, start, end, lang, ...}]
+  function blocks(t) {
+    const lines = t.split("\n"), out = [];
+    let pos = 0, i = 0, proseStart = 0;
+    const offs = []; for (const l of lines) { offs.push(pos); pos += l.length + 1; }
+    while (i < lines.length) {
+      const m = lines[i].match(FENCE_OPEN);
+      if (m) {
+        let j = i + 1;
+        while (j < lines.length && !FENCE_CLOSE.test(lines[j])) j++;
+        const closed = j < lines.length;
+        const start = offs[i], end = closed ? Math.min(t.length, offs[j] + lines[j].length + 1) : t.length;
+        if (start > proseStart) out.push({ type: "prose", start: proseStart, end: start });
+        out.push({ type: "code", start, end, lang: m[1], closed, codeStart: offs[i] + lines[i].length + 1, codeEnd: closed ? offs[j] : t.length });
+        proseStart = end; i = closed ? j + 1 : lines.length;
+      } else i++;
+    }
+    if (proseStart < t.length || !out.length) out.push({ type: "prose", start: proseStart, end: t.length });
+    return out;
+  }
+
+  function inline(s) {
+    // s is raw text of one line (no newline). Returns HTML.
+    const codes = [];
+    let h = esc(s).replace(/`([^`\n]+)`/g, (_, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+    const wrap = (cls, m) => (_, pre, inner) => `${pre}<span class="mk">${m}</span><span class="${cls}">${inner}</span><span class="mk">${m}</span>`;
+    h = h.replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?![\w*])/g, wrap("fb", "*"))
+         .replace(/(^|[^\w_])_(?=\S)([^_\n]*?\S)_(?![\w_])/g, wrap("fi", "_"))
+         .replace(/(^|[^\w~])~(?=\S)([^~\n]*?\S)~(?![\w~])/g, wrap("fs", "~"));
+    return h.replace(/\u0000(\d+)\u0000/g, (_, n) => `<span class="mk">\`</span><span class="ic">${codes[n]}</span><span class="mk">\`</span>`);
+  }
+
+  function prose(t, base) {
+    let off = base;
+    return t.split("\n").map(line => {
+      let m, html;
+      if ((m = line.match(/^(#{1,3}) (.*)$/))) html = `<span class="hd h${m[1].length}"><span class="mk">${m[1]} </span>${inline(m[2])}</span>`;
+      else if ((m = line.match(/^(\s*)([-*•]|\d+[.)]) (.*)$/))) html = `${m[1]}<span class="lm">${esc(m[2])} </span>${inline(m[3])}`;
+      else html = inline(line);
+      const out = line.includes("*") || line.includes("_") || line.includes("~") || line.includes("`") || line.startsWith("#")
+        ? `<span class="ln" data-s="${off}" data-e="${off + line.length}">${html}</span>` : html;
+      off += line.length + 1;
+      return out;
+    }).join("\n");
+  }
+
+  function code(b) {
+    const src = text.slice(b.codeStart, b.codeEnd).replace(/\n$/, "");
+    const H = hl();
+    let html = esc(src), label = b.lang || "";
+    const key = (b.lang || "") + "\u0001" + src;
+    if (H && src.trim() && hlCache.has(key)) [html, label] = hlCache.get(key);
+    else if (H && src.trim()) {
+      try {
+        if (b.lang && H.getLanguage(b.lang)) { html = H.highlight(src, { language: b.lang, ignoreIllegals: true }).value; label = H.getLanguage(b.lang).name || b.lang; }
+        else { const r = H.highlightAuto(src, LANGS); html = r.value; label = b.lang || (r.language ? (H.getLanguage(r.language).name || r.language) : "code"); }
+      } catch { html = esc(src); }
+      hlCache.set(key, [html, label]);
+      if (hlCache.size > 200) hlCache.delete(hlCache.keys().next().value);
+    }
+    const open = text.slice(b.start, b.codeStart);
+    const nl = text.slice(b.codeStart, b.codeEnd).endsWith("\n") ? "\n" : "";
+    const close = text.slice(b.codeEnd, b.end);
+    return `<span class="cb" data-s="${b.start}" data-e="${b.end}" data-lang="${esc(label || "code")}"><span class="fence">${esc(open)}</span><span class="code hljs">${html}${nl}</span>${close ? `<span class="fence">${esc(close)}</span>` : ""}</span>`;
+  }
+
+  function render() {
+    const html = blocks(text).map(b => b.type === "code" ? code(b) : prose(text.slice(b.start, b.end), b.start)).join("");
+    el.innerHTML = html + (text.endsWith("\n") ? "<br>" : "");
+    el.classList.toggle("is-empty", !text);
+    markCurrent();
+  }
+
+  // Markers (#, *, _, ~, `, fences) only show on the line or code block being edited.
+  function markCurrent() {
+    const focused = document.activeElement === el;
+    const [a, b] = lastSel;
+    el.querySelectorAll(".ln, .cb").forEach(n => {
+      const s = +n.dataset.s, e = +n.dataset.e;
+      n.classList.toggle("cur", focused && a <= e && b >= s);
+    });
+  }
+
+  // ---------- selection <-> offsets ----------
+  function offsetOf(node, off) {
+    const r = document.createRange();
+    r.setStart(el, 0);
+    try { r.setEnd(node, off); } catch { return text.length; }
+    return r.toString().length;
+  }
+  function readSel() {
+    const s = window.getSelection();
+    if (!s || !s.rangeCount || !el.contains(s.anchorNode)) return lastSel;
+    const r = s.getRangeAt(0);
+    const a = offsetOf(r.startContainer, r.startOffset), b = offsetOf(r.endContainer, r.endOffset);
+    lastSel = [Math.min(a, b, text.length), Math.min(Math.max(a, b), text.length)];
+    return lastSel;
+  }
+  function point(off) {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let n, acc = 0, last = null;
+    while ((n = w.nextNode())) {
+      const len = n.data.length;
+      if (off < acc + len || (off === acc + len && !n.data.endsWith("\n") && off === text.length)) return [n, off - acc];
+      acc += len; last = n;
+    }
+    // past the end: after a trailing newline, sit on the <br>
+    if (text.endsWith("\n") && el.lastChild && el.lastChild.nodeName === "BR") return [el, el.childNodes.length - 1];
+    return last ? [last, last.data.length] : [el, 0];
+  }
+  function writeSel(a, b = a) {
+    lastSel = [a, b];
+    if (document.activeElement !== el) return;
+    const s = window.getSelection(), r = document.createRange();
+    const [n1, o1] = point(a), [n2, o2] = point(b);
+    r.setStart(n1, o1); r.setEnd(n2, o2);
+    s.removeAllRanges(); s.addRange(r);
+  }
+  function rectAt(off) {
+    const [n, o] = point(Math.min(off, text.length));
+    const r = document.createRange();
+    if (n.nodeType === 3 && o < n.data.length) { r.setStart(n, o); r.setEnd(n, o + 1); }
+    else { r.setStart(n, o); r.setEnd(n, o); }
+    const rect = [...r.getClientRects()].find(x => x.width || x.height) || r.getBoundingClientRect();
+    if (!rect || (!rect.width && !rect.height && !rect.top)) { const e = el.getBoundingClientRect(); return { x: e.left, y: e.top, h: 28 }; }
+    return { x: rect.left, y: rect.top, h: rect.height || 28 };
+  }
+
+  // ---------- history ----------
+  let hist = [{ text: "", sel: [0, 0] }], hi = 0, lastKind = "", lastTime = 0;
+  function commit(kind) {
+    const now = Date.now();
+    const state = { text, sel: lastSel.slice() };
+    if (kind === "type" && lastKind === "type" && now - lastTime < 1200 && hi === hist.length - 1 && hi > 0) hist[hi] = state;
+    else { hist = hist.slice(0, hi + 1); hist.push(state); hi++; if (hist.length > 400) { hist.shift(); hi--; } }
+    lastKind = kind; lastTime = now;
+  }
+  function restore(st) { text = st.text; render(); writeSel(...st.sel); fire(); }
+  function undo() { if (hi > 0) { hi--; restore(hist[hi]); lastKind = ""; } }
+  function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi]); lastKind = ""; } }
+
+  const fire = () => el.dispatchEvent(new Event("input", { bubbles: true }));
+  function edit(a, b, str, kind = "cmd", caret) {
+    text = text.slice(0, a) + str + text.slice(b);
+    const c = caret ?? a + str.length;
+    lastSel = [c, c];
+    render(); writeSel(c, c); commit(kind); fire();
+  }
+
+  // ---------- input handling ----------
+  let composing = false;
+  el.addEventListener("compositionstart", () => { composing = true; });
+  el.addEventListener("compositionend", () => {
+    composing = false;
+    const t = el.textContent;
+    if (t !== text) { const s = readSel(); text = t; render(); writeSel(...s); commit("type"); fire(); }
+  });
+  el.addEventListener("beforeinput", e => {
+    if (composing || e.isComposing) return;
+    const type = e.inputType;
+    if (type === "historyUndo") { e.preventDefault(); undo(); return; }
+    if (type === "historyRedo") { e.preventDefault(); redo(); return; }
+    if (type.startsWith("format")) { e.preventDefault(); return; }
+    let [a, b] = readSel();
+    const tr = e.getTargetRanges && e.getTargetRanges()[0];
+    if (tr) { a = offsetOf(tr.startContainer, tr.startOffset); b = offsetOf(tr.endContainer, tr.endOffset); if (a > b) [a, b] = [b, a]; }
+    let str = null, kind = "type";
+    if (type === "insertText" || type === "insertReplacementText") str = e.data ?? (e.dataTransfer && e.dataTransfer.getData("text/plain")) ?? "";
+    else if (type === "insertParagraph" || type === "insertLineBreak") { str = "\n" + autoIndent(a); kind = "cmd"; }
+    else if (type.startsWith("delete")) {
+      str = "";
+      if (a === b) { // no target range given: fall back to one character
+        if (type.includes("Backward") && a > 0) a--; else if (type.includes("Forward") && b < text.length) b++;
+      }
+    }
+    else if (type === "insertFromPaste" || type === "insertFromDrop") { str = (e.dataTransfer && e.dataTransfer.getData("text/plain")) || ""; kind = "cmd"; }
+    if (str === null) return; // let the browser handle anything exotic; the input listener resyncs
+    e.preventDefault();
+    edit(a, b, str.replace(/\r\n?/g, "\n"), kind);
+  });
+  // Safety net: if the DOM changed without us (spellcheck menus, extensions), take its text as the truth.
+  el.addEventListener("input", e => {
+    if (!e.isTrusted || composing) return;
+    const t = el.textContent;
+    if (t !== text) { const s = readSel(); text = t; render(); writeSel(...s); commit("type"); }
+  });
+  el.addEventListener("keydown", e => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && !e.altKey && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if (mod && !e.altKey && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+  });
+  el.addEventListener("copy", e => { const [a, b] = readSel(); if (a === b) return; e.preventDefault(); e.clipboardData.setData("text/plain", text.slice(a, b)); });
+  el.addEventListener("cut", e => { const [a, b] = readSel(); if (a === b) return; e.preventDefault(); e.clipboardData.setData("text/plain", text.slice(a, b)); edit(a, b, ""); });
+  document.addEventListener("selectionchange", () => { if (document.activeElement === el) { readSel(); markCurrent(); } });
+  el.addEventListener("blur", () => markCurrent());
+  el.addEventListener("focus", () => markCurrent());
+
+  // ---------- code helpers ----------
+  function codeBlockAt(pos) { return blocks(text).find(b => b.type === "code" && pos >= b.codeStart && pos <= Math.max(b.codeStart, b.codeEnd)) || null; }
+  function autoIndent(pos) {
+    if (!codeBlockAt(pos)) return "";
+    const ls = text.lastIndexOf("\n", pos - 1) + 1;
+    const before = text.slice(ls, pos);
+    return before.match(/^[ \t]*/)[0] + (/[{[(:]\s*$/.test(before) ? "  " : "");
+  }
+  function detect(src) {
+    const H = hl();
+    if (!H) return null;
+    const lines = src.trim().split("\n");
+    const symbols = (src.match(/[{}()[\];=<>$]/g) || []).length / Math.max(1, src.length);
+    const indented = lines.filter(l => /^( {2,}|\t)\S/.test(l)).length;
+    const r = H.highlightAuto(src, LANGS);
+    const looks = lines.length >= 2 && r.relevance >= 6 && (symbols > 0.025 || indented >= 2);
+    return looks ? { lang: r.language, name: r.language ? (H.getLanguage(r.language).name || r.language) : "code" } : null;
+  }
+
+  const api = {
+    el,
+    get value() { return text; },
+    set value(v) { text = String(v ?? "").replace(/\r\n?/g, "\n"); render(); hist = [{ text, sel: [text.length, text.length] }]; hi = 0; },
+    get selectionStart() { return readSel()[0]; },
+    get selectionEnd() { return readSel()[1]; },
+    setSelectionRange(a, b) { writeSel(Math.max(0, Math.min(a, text.length)), Math.max(0, Math.min(b, text.length))); },
+    setRangeText(str, a, b) { edit(a, b, str, "cmd"); },
+    focus() { el.focus({ preventScroll: true }); writeSel(...lastSel); },
+    select() { el.focus(); writeSel(0, text.length); },
+    addEventListener: (...a) => el.addEventListener(...a),
+    dispatchEvent: e => el.dispatchEvent(e),
+    getBoundingClientRect: () => el.getBoundingClientRect(),
+    rectAt, blocks: () => blocks(text), codeBlockAt, detect, render, edit,
+    hasHighlighter: () => !!hl(),
+  };
+  return api;
+};
+</script>
 <script>
 (() => {
   const KEY = "specaboo:text";
   const THEME_KEY = "specaboo:theme";
-  const page = document.getElementById("page");
+  const page = SpecEditor(document.getElementById("page"));
   const statusEl = document.getElementById("status");
   const countEl = document.getElementById("count");
   const ghost = document.getElementById("ghost");
@@ -824,23 +1135,8 @@ const GhostKit = (() => {
   // The text stays plain, so the .txt download keeps the markers.
   const fmt = document.getElementById("fmt");
   const fmtButtons = [...fmt.querySelectorAll("button")];
-  const mirror = document.createElement("div");
-  mirror.className = "mirror";
-  document.body.appendChild(mirror);
-
-  // Where in the window is character `index` of the textarea? (mirror-div trick)
-  function caretXY(index) {
-    const cs = getComputedStyle(page);
-    for (const k of ["fontFamily", "fontSize", "fontWeight", "fontStyle", "lineHeight", "letterSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderLeftWidth", "boxSizing", "tabSize", "wordSpacing", "textIndent"]) mirror.style[k] = cs[k];
-    mirror.style.width = page.clientWidth + "px";
-    mirror.textContent = page.value.slice(0, index);
-    const mark = document.createElement("span");
-    mark.textContent = page.value.slice(index, index + 1) || ".";
-    mirror.appendChild(mark);
-    const r = page.getBoundingClientRect();
-    const lh = parseFloat(cs.lineHeight) || 28;
-    return { x: r.left + mark.offsetLeft - page.scrollLeft, y: r.top + mark.offsetTop - page.scrollTop, lh };
-  }
+  // Where in the window is character `index`?
+  function caretXY(index) { const r = page.rectAt(index); return { x: r.x, y: r.y, lh: r.h }; }
 
   function wrapState(mark) {
     const { selectionStart: a, selectionEnd: b, value: v } = page;
@@ -852,12 +1148,7 @@ const GhostKit = (() => {
 
   function replaceRange(start, end, text) {
     page.focus();
-    page.setSelectionRange(start, end);
-    // execCommand keeps the browser's undo history; fall back if it's unavailable
-    if (!document.execCommand || !document.execCommand("insertText", false, text)) {
-      page.setRangeText(text, start, end, "end");
-      page.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+    page.setRangeText(text, start, end); // goes into Specaboo's own undo history
   }
 
   function toggle(mark) {
@@ -883,10 +1174,38 @@ const GhostKit = (() => {
     showFmt();
   }
 
+  // Code: whole lines (or several lines) become a fenced code block with auto-detected highlighting;
+  // a few words inside a line become `inline code`. Pressing it inside a code block removes the block.
+  function toggleCode() {
+    const v = page.value, a = page.selectionStart, b = page.selectionEnd;
+    const inBlock = page.codeBlockAt(a);
+    if (inBlock) {
+      const code = v.slice(inBlock.codeStart, inBlock.codeEnd).replace(/\n$/, "");
+      const after = inBlock.end < v.length || v.slice(inBlock.codeEnd, inBlock.end).endsWith("\n") ? "\n" : "";
+      replaceRange(inBlock.start, inBlock.end, code + after);
+      page.setSelectionRange(inBlock.start, inBlock.start + code.length);
+      return showFmt();
+    }
+    if (a === b) return;
+    const ls = v.lastIndexOf("\n", a - 1) + 1;
+    let le = v.indexOf("\n", b - (v[b - 1] === "\n" ? 1 : 0)); if (le === -1) le = v.length;
+    const sel = v.slice(a, b);
+    const wholeLines = sel.includes("\n") || (a <= ls + (v.slice(ls, a).match(/^\s*/) || [""])[0].length && b >= le);
+    if (!wholeLines) return toggle("`");
+    const body = v.slice(ls, le);
+    const block = "```\n" + body + "\n```";
+    replaceRange(ls, le, block);
+    page.setSelectionRange(ls + 4, ls + 4 + body.length);
+    const d = page.detect(body);
+    toast(d ? `Code block · ${d.name}` : "Code block");
+    showFmt();
+  }
+  fmt.querySelector("[data-code]").addEventListener("click", toggleCode);
+
   function hideFmt() { fmt.hidden = true; }
   function showFmt() {
     const a = page.selectionStart, b = page.selectionEnd;
-    if (a === b || document.activeElement !== page && !fmt.contains(document.activeElement)) return hideFmt();
+    if (a === b || document.activeElement !== page.el && !fmt.contains(document.activeElement)) return hideFmt();
     const start = caretXY(a), end = caretXY(Math.max(a, b - 1));
     const sameLine = Math.abs(start.y - end.y) < 2;
     let x = sameLine ? (start.x + end.x) / 2 + 6 : start.x + 24;
@@ -899,7 +1218,8 @@ const GhostKit = (() => {
     x = Math.min(window.innerWidth - w / 2 - 8, Math.max(w / 2 + 8, x));
     fmt.style.left = x + "px";
     fmt.style.top = y + "px";
-    fmtButtons.forEach(btn => btn.setAttribute("aria-pressed", String(btn.dataset.mark ? !!wrapState(btn.dataset.mark) : lineState(btn.dataset.line))));
+    const inCode = !!page.codeBlockAt(a);
+    fmtButtons.forEach(btn => btn.setAttribute("aria-pressed", String(btn.dataset.code ? inCode || wrapState("`") === "outside" : btn.dataset.mark ? !!wrapState(btn.dataset.mark) : lineState(btn.dataset.line))));
   }
 
 
@@ -973,6 +1293,20 @@ const GhostKit = (() => {
     const ls = v.lastIndexOf("\n", a - 1) + 1;
     let le = v.indexOf("\n", a); if (le === -1) le = v.length;
     const line = v.slice(ls, le);
+    const cb = page.codeBlockAt(a);
+    if (cb) {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        if (e.shiftKey) { const sp = line.match(/^ {1,2}/); if (sp) { replaceRange(ls, ls + sp[0].length, ""); page.setSelectionRange(Math.max(ls, a - sp[0].length), Math.max(ls, a - sp[0].length)); } }
+        else replaceRange(a, b, "  ");
+      }
+      return; // Enter inside code keeps indentation (handled by the editor)
+    }
+    // typing ``` (or ```python) and Enter opens a code block and closes it for you
+    if (e.key === "Enter" && !e.shiftKey && a === b && a === le && /^```[\w+#.-]*\s*$/.test(line)) {
+      const later = page.blocks().find(x => x.type === "code" && x.start === ls);
+      if (!later || !later.closed) { e.preventDefault(); replaceRange(a, a, "\n\n```"); page.setSelectionRange(a + 1, a + 1); return; }
+    }
     const ul = line.match(RX.ul), ol = line.match(RX.ol);
     const m = ul || ol;
     if (e.key === "Enter" && !e.shiftKey && a === b && m) {
@@ -1003,12 +1337,35 @@ const GhostKit = (() => {
     }
   });
 
+  // Pasting code outside a code block wraps it in one. Ctrl+Z turns it back into plain pasted text.
+  page.addEventListener("paste", e => {
+    const raw = e.clipboardData && e.clipboardData.getData("text/plain");
+    if (raw == null) return;
+    e.preventDefault();
+    const t = raw.replace(/\r\n?/g, "\n");
+    const a = page.selectionStart, b = page.selectionEnd;
+    replaceRange(a, b, t);
+    if (page.codeBlockAt(a)) return;
+    const d = t.includes("\n") ? page.detect(t) : null;
+    if (!d) return;
+    const v = page.value, atLineStart = a === 0 || v[a - 1] === "\n";
+    const end = a + t.length, atLineEnd = end === v.length || v[end] === "\n";
+    const body = t.replace(/\n+$/, "");
+    const block = (atLineStart ? "" : "\n") + "```\n" + body + "\n```" + (atLineEnd && end < v.length ? "" : "\n");
+    replaceRange(a, end, block);
+    toast(`Pasted as a ${d.name} code block. Ctrl+Z to keep it as plain text.`);
+  });
+
   fmt.addEventListener("mousedown", e => e.preventDefault()); // keep the selection while clicking
   fmtButtons.forEach(btn => btn.dataset.mark && btn.addEventListener("click", () => toggle(btn.dataset.mark)));
-  page.addEventListener("mouseup", () => setTimeout(showFmt, 0));
+  page.addEventListener("mouseup", () => { mouseDown = false; setTimeout(showFmt, 0); });
   page.addEventListener("keyup", e => { if (e.shiftKey || e.key === "Shift" || (e.key.toLowerCase() === "a" && (e.metaKey || e.ctrlKey))) showFmt(); });
-  page.addEventListener("select", showFmt);
-  document.addEventListener("selectionchange", () => { if (document.activeElement === page && page.selectionStart === page.selectionEnd) hideFmt(); });
+  let mouseDown = false, selTimer;
+  page.addEventListener("mousedown", () => { mouseDown = true; });
+  document.addEventListener("mouseup", () => { mouseDown = false; });
+  document.addEventListener("selectionchange", () => { if (document.activeElement !== page.el) return;
+    if (page.selectionStart === page.selectionEnd) hideFmt();
+    else if (!mouseDown) { clearTimeout(selTimer); selTimer = setTimeout(showFmt, 120); } });
   page.addEventListener("input", () => { if (page.selectionStart === page.selectionEnd) hideFmt(); });
   page.addEventListener("scroll", () => { if (!fmt.hidden) showFmt(); });
   page.addEventListener("blur", () => setTimeout(() => { if (!fmt.contains(document.activeElement)) hideFmt(); }, 0));
@@ -1024,8 +1381,9 @@ const GhostKit = (() => {
       return;
     }
     const k = e.key.toLowerCase();
-    const mark = !e.shiftKey && k === "b" ? "*" : !e.shiftKey && k === "i" ? "_" : e.shiftKey && k === "x" ? "~" : e.shiftKey && k === "m" ? "```" : null;
+    const mark = !e.shiftKey && k === "b" ? "*" : !e.shiftKey && k === "i" ? "_" : e.shiftKey && k === "x" ? "~" : null;
     if (mark) { e.preventDefault(); toggle(mark); }
+    else if (e.shiftKey && k === "m") { e.preventDefault(); toggleCode(); }
   });
 
   // Ctrl/⌘+S downloads instead of the browser's "save page" dialog
