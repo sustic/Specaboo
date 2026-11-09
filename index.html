@@ -185,6 +185,46 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   .count .extra { display: none; }
 }
 
+/* ---------- formatting popup (WhatsApp-style markers) ---------- */
+.fmt {
+  position: fixed;
+  z-index: 20;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: var(--solid);
+  color: var(--on-solid);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+  transform: translate(-50%, -100%);
+  transition: opacity .12s ease;
+}
+.fmt::after {
+  content: "";
+  position: absolute;
+  left: 50%; bottom: -5px;
+  width: 10px; height: 10px;
+  background: var(--solid);
+  transform: translateX(-50%) rotate(45deg);
+  border-radius: 2px;
+}
+.fmt.below { transform: translate(-50%, 0); }
+.fmt.below::after { bottom: auto; top: -5px; }
+.fmt button {
+  appearance: none; border: 0; background: transparent; color: inherit;
+  width: 34px; height: 32px; border-radius: 8px; cursor: pointer;
+  display: grid; place-items: center;
+  font: 15px var(--f-ui); position: relative; z-index: 1;
+}
+.fmt button:hover { background: rgba(127, 127, 127, .25); }
+.fmt button[aria-pressed="true"] { color: var(--accent); }
+.fmt button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.fmt .b { font-weight: 700; }
+.fmt .i { font-style: italic; font-family: Georgia, serif; }
+.fmt .s { text-decoration: line-through; }
+.fmt .m { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.mirror { position: absolute; top: 0; left: -9999px; visibility: hidden; white-space: pre-wrap; overflow-wrap: break-word; }
+
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
 @keyframes boo { 0% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-8px) rotate(-8deg); } 60% { transform: translateY(-3px) rotate(6deg); } 100% { transform: translateY(0) rotate(0); } }
@@ -222,6 +262,12 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   </div>
 </footer>
 
+<div class="fmt" id="fmt" role="toolbar" aria-label="Format selected text" hidden>
+  <button type="button" class="b" data-mark="*" title="Bold (Ctrl+B)" aria-label="Bold">B</button>
+  <button type="button" class="i" data-mark="_" title="Italic (Ctrl+I)" aria-label="Italic">I</button>
+  <button type="button" class="s" data-mark="~" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough">S</button>
+  <button type="button" class="m" data-mark="```" title="Monospace (Ctrl+Shift+M)" aria-label="Monospace">&lt;/&gt;</button>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -756,6 +802,110 @@ const GhostKit = (() => {
     toast(`Downloaded ${name}`);
   }
   document.getElementById("download").addEventListener("click", download);
+
+
+  // ---------- formatting popup ----------
+  // Like WhatsApp: wrap the selection in *bold*, _italic_, ~strike~ or ```mono``` markers.
+  // The text stays plain, so the .txt download keeps the markers.
+  const fmt = document.getElementById("fmt");
+  const fmtButtons = [...fmt.querySelectorAll("button")];
+  const mirror = document.createElement("div");
+  mirror.className = "mirror";
+  document.body.appendChild(mirror);
+
+  // Where in the window is character `index` of the textarea? (mirror-div trick)
+  function caretXY(index) {
+    const cs = getComputedStyle(page);
+    for (const k of ["fontFamily", "fontSize", "fontWeight", "fontStyle", "lineHeight", "letterSpacing", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft", "borderTopWidth", "borderLeftWidth", "boxSizing", "tabSize", "wordSpacing", "textIndent"]) mirror.style[k] = cs[k];
+    mirror.style.width = page.clientWidth + "px";
+    mirror.textContent = page.value.slice(0, index);
+    const mark = document.createElement("span");
+    mark.textContent = page.value.slice(index, index + 1) || ".";
+    mirror.appendChild(mark);
+    const r = page.getBoundingClientRect();
+    const lh = parseFloat(cs.lineHeight) || 28;
+    return { x: r.left + mark.offsetLeft - page.scrollLeft, y: r.top + mark.offsetTop - page.scrollTop, lh };
+  }
+
+  function wrapState(mark) {
+    const { selectionStart: a, selectionEnd: b, value: v } = page;
+    const n = mark.length, sel = v.slice(a, b);
+    if (sel.length > 2 * n && sel.startsWith(mark) && sel.endsWith(mark)) return "inside";
+    if (v.slice(a - n, a) === mark && v.slice(b, b + n) === mark) return "outside";
+    return null;
+  }
+
+  function replaceRange(start, end, text) {
+    page.focus();
+    page.setSelectionRange(start, end);
+    // execCommand keeps the browser's undo history; fall back if it's unavailable
+    if (!document.execCommand || !document.execCommand("insertText", false, text)) {
+      page.setRangeText(text, start, end, "end");
+      page.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+
+  function toggle(mark) {
+    const a = page.selectionStart, b = page.selectionEnd;
+    if (a === b) return;
+    const n = mark.length, v = page.value, state = wrapState(mark);
+    if (state === "inside") {
+      const inner = v.slice(a + n, b - n);
+      replaceRange(a, b, inner);
+      page.setSelectionRange(a, a + inner.length);
+    } else if (state === "outside") {
+      const inner = v.slice(a, b);
+      replaceRange(a - n, b + n, inner);
+      page.setSelectionRange(a - n, a - n + inner.length);
+    } else {
+      // keep spaces outside the markers, as WhatsApp does
+      const sel = v.slice(a, b), lead = sel.match(/^\s*/)[0].length, trail = sel.match(/\s*$/)[0].length;
+      const core = sel.slice(lead, sel.length - trail);
+      if (!core) return;
+      replaceRange(a + lead, b - trail, mark + core + mark);
+      page.setSelectionRange(a + lead + n, a + lead + n + core.length);
+    }
+    showFmt();
+  }
+
+  function hideFmt() { fmt.hidden = true; }
+  function showFmt() {
+    const a = page.selectionStart, b = page.selectionEnd;
+    if (a === b || document.activeElement !== page && !fmt.contains(document.activeElement)) return hideFmt();
+    const start = caretXY(a), end = caretXY(Math.max(a, b - 1));
+    const sameLine = Math.abs(start.y - end.y) < 2;
+    let x = sameLine ? (start.x + end.x) / 2 + 6 : start.x + 24;
+    let y = start.y - 10;
+    fmt.hidden = false;
+    const w = fmt.offsetWidth, h = fmt.offsetHeight;
+    const below = y - h < 8;
+    fmt.classList.toggle("below", below);
+    if (below) y = (sameLine ? end.y : start.y) + start.lh + 8;
+    x = Math.min(window.innerWidth - w / 2 - 8, Math.max(w / 2 + 8, x));
+    fmt.style.left = x + "px";
+    fmt.style.top = y + "px";
+    fmtButtons.forEach(btn => btn.setAttribute("aria-pressed", String(!!wrapState(btn.dataset.mark))));
+  }
+
+  fmt.addEventListener("mousedown", e => e.preventDefault()); // keep the selection while clicking
+  fmtButtons.forEach(btn => btn.addEventListener("click", () => toggle(btn.dataset.mark)));
+  page.addEventListener("mouseup", () => setTimeout(showFmt, 0));
+  page.addEventListener("keyup", e => { if (e.shiftKey || e.key === "Shift" || (e.key.toLowerCase() === "a" && (e.metaKey || e.ctrlKey))) showFmt(); });
+  page.addEventListener("select", showFmt);
+  document.addEventListener("selectionchange", () => { if (document.activeElement === page && page.selectionStart === page.selectionEnd) hideFmt(); });
+  page.addEventListener("input", () => { if (page.selectionStart === page.selectionEnd) hideFmt(); });
+  page.addEventListener("scroll", () => { if (!fmt.hidden) showFmt(); });
+  page.addEventListener("blur", () => setTimeout(() => { if (!fmt.contains(document.activeElement)) hideFmt(); }, 0));
+  window.addEventListener("resize", () => { if (!fmt.hidden) showFmt(); });
+  page.addEventListener("keydown", e => {
+    if (!(e.metaKey || e.ctrlKey) || page.selectionStart === page.selectionEnd) {
+      if (e.key === "Escape") hideFmt();
+      return;
+    }
+    const k = e.key.toLowerCase();
+    const mark = !e.shiftKey && k === "b" ? "*" : !e.shiftKey && k === "i" ? "_" : e.shiftKey && k === "x" ? "~" : e.shiftKey && k === "m" ? "```" : null;
+    if (mark) { e.preventDefault(); toggle(mark); }
+  });
 
   // Ctrl/⌘+S downloads instead of the browser's "save page" dialog
   document.addEventListener("keydown", e => {

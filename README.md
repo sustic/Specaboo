@@ -6,6 +6,7 @@ A quiet, full-screen page to type on, in your browser. A little ghost keeps watc
 - Word, character and reading-time count
 - Dark mode toggle (remembers your choice, follows your system by default)
 - Download your text as a `.txt` file (button or Ctrl/⌘+S)
+- Select text to get a small formatting popup: bold, italic, strikethrough and monospace, written as WhatsApp-style markers (`*bold*`, `_italic_`, `~strike~`, ```` ```mono``` ````). Shortcuts: Ctrl/⌘+B, Ctrl/⌘+I, Ctrl/⌘+Shift+X, Ctrl/⌘+Shift+M.
 - The bottom bar fades while you type and returns when you move the mouse
 
 ## Run it
