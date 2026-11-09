@@ -190,6 +190,9 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   position: fixed;
   z-index: 20;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - 16px);
   gap: 2px;
   padding: 4px;
   background: var(--solid);
@@ -223,6 +226,11 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
 .fmt .i { font-style: italic; font-family: Georgia, serif; }
 .fmt .s { text-decoration: line-through; }
 .fmt .m { font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+.fmt .h { font-weight: 700; font-size: 13px; }
+.fmt .sep { width: 1px; margin: 6px 3px; background: currentColor; opacity: .25; }
+.fmt svg { width: 18px; height: 18px; fill: currentColor; stroke: none; }
+.fmt svg path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.fmt svg text { font-family: var(--f-ui); }
 .mirror { position: absolute; top: 0; left: -9999px; visibility: hidden; white-space: pre-wrap; overflow-wrap: break-word; }
 
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
@@ -266,7 +274,14 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   <button type="button" class="b" data-mark="*" title="Bold (Ctrl+B)" aria-label="Bold">B</button>
   <button type="button" class="i" data-mark="_" title="Italic (Ctrl+I)" aria-label="Italic">I</button>
   <button type="button" class="s" data-mark="~" title="Strikethrough (Ctrl+Shift+X)" aria-label="Strikethrough">S</button>
-  <button type="button" class="m" data-mark="```" title="Monospace (Ctrl+Shift+M)" aria-label="Monospace">&lt;/&gt;</button>
+  <button type="button" class="m" data-mark="```" title="Code (Ctrl+Shift+M)" aria-label="Code">&lt;/&gt;</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" class="h" data-line="h1" title="Heading 1 (Ctrl+Alt+1)" aria-label="Heading 1">H1</button>
+  <button type="button" class="h" data-line="h2" title="Heading 2 (Ctrl+Alt+2)" aria-label="Heading 2">H2</button>
+  <button type="button" class="h" data-line="h3" title="Heading 3 (Ctrl+Alt+3)" aria-label="Heading 3">H3</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-line="ul" title="Bullet list (Ctrl+Shift+8)" aria-label="Bullet list"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="5" r="1.6"/><circle cx="4" cy="10" r="1.6"/><circle cx="4" cy="15" r="1.6"/><path d="M8 5h9M8 10h9M8 15h9"/></svg></button>
+  <button type="button" data-line="ol" title="Numbered list (Ctrl+Shift+7)" aria-label="Numbered list"><svg viewBox="0 0 20 20" aria-hidden="true"><text x="1.5" y="7" font-size="6" font-weight="700">1</text><text x="1.5" y="12.5" font-size="6" font-weight="700">2</text><text x="1.5" y="18" font-size="6" font-weight="700">3</text><path d="M8 5h9M8 10h9M8 15h9"/></svg></button>
 </div>
 <div class="toast" id="toast" role="status"></div>
 
@@ -884,11 +899,112 @@ const GhostKit = (() => {
     x = Math.min(window.innerWidth - w / 2 - 8, Math.max(w / 2 + 8, x));
     fmt.style.left = x + "px";
     fmt.style.top = y + "px";
-    fmtButtons.forEach(btn => btn.setAttribute("aria-pressed", String(!!wrapState(btn.dataset.mark))));
+    fmtButtons.forEach(btn => btn.setAttribute("aria-pressed", String(btn.dataset.mark ? !!wrapState(btn.dataset.mark) : lineState(btn.dataset.line))));
   }
 
+
+  // ---------- headings and lists (Markdown-style line prefixes) ----------
+  const RX = { h: /^(#{1,6}) /, ul: /^(\s*)([-*•]) /, ol: /^(\s*)(\d+)([.)]) / };
+  function lineBounds() {
+    const v = page.value, a = page.selectionStart;
+    let b = page.selectionEnd;
+    if (b > a && v[b - 1] === "\n") b--;
+    const start = v.lastIndexOf("\n", a - 1) + 1;
+    let end = v.indexOf("\n", b);
+    if (end === -1) end = v.length;
+    return [start, end];
+  }
+  const stripLine = l => l.replace(RX.h, "").replace(RX.ul, "$1").replace(RX.ol, "$1");
+  function lineState(kind) {
+    const [st, en] = lineBounds();
+    const lines = page.value.slice(st, en).split("\n").filter(l => l.trim());
+    if (!lines.length) return false;
+    if (kind[0] === "h") { const lvl = +kind[1]; return lines.every(l => (l.match(RX.h) || [, ""])[1].length === lvl); }
+    return lines.every(l => RX[kind].test(l));
+  }
+  function applyLine(kind) {
+    const [st, en] = lineBounds();
+    const on = lineState(kind);
+    let n = 0;
+    const out = page.value.slice(st, en).split("\n").map(l => {
+      if (!l.trim()) return l;
+      const bare = stripLine(l);
+      if (on) return bare;
+      const indent = bare.match(/^\s*/)[0], text = bare.slice(indent.length);
+      if (kind[0] === "h") return "#".repeat(+kind[1]) + " " + bare.trim();
+      if (kind === "ul") return indent + "- " + text;
+      return indent + (++n) + ". " + text;
+    }).join("\n");
+    replaceRange(st, en, out);
+    page.setSelectionRange(st, st + out.length);
+    showFmt();
+  }
+  fmt.querySelectorAll("[data-line]").forEach(btn => btn.addEventListener("click", () => applyLine(btn.dataset.line)));
+
+  // Renumber a numbered list block that contains position `pos`, keeping the caret in place.
+  function renumberAround(pos) {
+    const v = page.value;
+    const lines = v.split("\n");
+    let idx = v.slice(0, pos).split("\n").length - 1;
+    const m0 = lines[idx] && lines[idx].match(RX.ol);
+    if (!m0) return;
+    const indent = m0[1];
+    const same = l => { const m = l.match(RX.ol); return m && m[1] === indent; };
+    let top = idx; while (top > 0 && same(lines[top - 1])) top--;
+    let bot = idx; while (bot < lines.length - 1 && same(lines[bot + 1])) bot++;
+    let start = 0; for (let i = 0; i < top; i++) start += lines[i].length + 1;
+    const block = lines.slice(top, bot + 1);
+    const first = +block[0].match(RX.ol)[2];
+    const fixed = block.map((l, i) => l.replace(RX.ol, (_, ind, __, d) => `${ind}${first + i}${d} `));
+    const oldText = block.join("\n"), newText = fixed.join("\n");
+    if (oldText === newText) return;
+    // keep the caret on the same character
+    const lineIdx = idx - top, col = pos - (start + block.slice(0, lineIdx).reduce((s, l) => s + l.length + 1, 0));
+    const shift = fixed[lineIdx].length - block[lineIdx].length;
+    replaceRange(start, start + oldText.length, newText);
+    const caret = start + fixed.slice(0, lineIdx).reduce((s, l) => s + l.length + 1, 0) + Math.max(0, col + shift);
+    page.setSelectionRange(caret, caret);
+  }
+
+  // Enter continues a list, Enter on an empty item ends it, Tab / Shift+Tab indent list items.
+  page.addEventListener("keydown", e => {
+    if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const v = page.value, a = page.selectionStart, b = page.selectionEnd;
+    const ls = v.lastIndexOf("\n", a - 1) + 1;
+    let le = v.indexOf("\n", a); if (le === -1) le = v.length;
+    const line = v.slice(ls, le);
+    const ul = line.match(RX.ul), ol = line.match(RX.ol);
+    const m = ul || ol;
+    if (e.key === "Enter" && !e.shiftKey && a === b && m) {
+      const prefixLen = m[0].length;
+      if (a < ls + prefixLen) return; // caret inside the marker: normal Enter
+      e.preventDefault();
+      if (!line.slice(prefixLen).trim()) { // empty item: end the list
+        replaceRange(ls, le, m[1]);
+        page.setSelectionRange(ls + m[1].length, ls + m[1].length);
+        return;
+      }
+      const marker = ul ? `${ul[1]}${ul[2]} ` : `${ol[1]}${+ol[2] + 1}${ol[3]} `;
+      replaceRange(a, a, "\n" + marker);
+      const caret = a + 1 + marker.length;
+      page.setSelectionRange(caret, caret);
+      if (ol) renumberAround(caret);
+      return;
+    }
+    if (e.key === "Tab" && m) {
+      e.preventDefault();
+      const [st, en] = lineBounds();
+      const lines = v.slice(st, en).split("\n");
+      const out = lines.map(l => (RX.ul.test(l) || RX.ol.test(l)) ? (e.shiftKey ? l.replace(/^ {1,2}/, "") : "  " + l) : l).join("\n");
+      const delta = out.length - (en - st);
+      replaceRange(st, en, out);
+      if (a === b) { const c = Math.max(st, a + (lines.length === 1 ? delta : 0)); page.setSelectionRange(c, c); }
+      else page.setSelectionRange(st, st + out.length);
+    }
+  });
+
   fmt.addEventListener("mousedown", e => e.preventDefault()); // keep the selection while clicking
-  fmtButtons.forEach(btn => btn.addEventListener("click", () => toggle(btn.dataset.mark)));
+  fmtButtons.forEach(btn => btn.dataset.mark && btn.addEventListener("click", () => toggle(btn.dataset.mark)));
   page.addEventListener("mouseup", () => setTimeout(showFmt, 0));
   page.addEventListener("keyup", e => { if (e.shiftKey || e.key === "Shift" || (e.key.toLowerCase() === "a" && (e.metaKey || e.ctrlKey))) showFmt(); });
   page.addEventListener("select", showFmt);
@@ -898,6 +1014,11 @@ const GhostKit = (() => {
   page.addEventListener("blur", () => setTimeout(() => { if (!fmt.contains(document.activeElement)) hideFmt(); }, 0));
   window.addEventListener("resize", () => { if (!fmt.hidden) showFmt(); });
   page.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey) {
+      if (e.altKey && /^Digit[123]$/.test(e.code)) { e.preventDefault(); applyLine("h" + e.code.slice(-1)); return; }
+      if (e.shiftKey && e.code === "Digit8") { e.preventDefault(); applyLine("ul"); return; }
+      if (e.shiftKey && e.code === "Digit7") { e.preventDefault(); applyLine("ol"); return; }
+    }
     if (!(e.metaKey || e.ctrlKey) || page.selectionStart === page.selectionEnd) {
       if (e.key === "Escape") hideFmt();
       return;
