@@ -287,6 +287,16 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   will-change: transform;
 }
 .kbar[hidden] { display: none; }
+.kbar.floating {
+  left: 8px; right: 8px;
+  max-width: 440px; margin: 0 auto;
+  padding: 4px;
+  border: 1px solid var(--code-line);
+  border-radius: 14px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .16);
+  transition: transform .12s ease;
+}
+@media (prefers-reduced-motion: reduce) { .kbar.floating { transition: none; } }
 .kbar button {
   appearance: none; border: 0; background: transparent; color: var(--ink);
   flex: 1 1 0; min-width: 0; height: 38px; border-radius: 9px;
@@ -1457,11 +1467,25 @@ const SpecEditor = (el) => {
   const kbar = document.getElementById("kbar");
   const kButtons = [...kbar.querySelectorAll("button")];
   const isTouch = () => coarse.matches;
+  // On its own site the bar rides on top of the keyboard (visualViewport knows where it is).
+  // Inside a frame, like the claude.ai preview, the keyboard is invisible to the page, so the
+  // bar floats just above the line being edited instead; iOS always keeps that line on screen.
+  let inFrame = true;
+  try { inFrame = window.self !== window.top; } catch { inFrame = true; }
+  kbar.classList.toggle("floating", inFrame);
   function placeKbar() {
-    const vv = window.visualViewport;
     const h = kbar.offsetHeight;
-    const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
-    kbar.style.transform = `translateY(${Math.round(bottom - h)}px)`;
+    let y;
+    if (inFrame) {
+      const r = page.rectAt(page.selectionStart);
+      y = r.y - h - 10;
+      if (y < 8) y = r.y + r.h + 10;
+      y = Math.min(y, window.innerHeight - h - 8);
+    } else {
+      const vv = window.visualViewport;
+      y = (vv ? vv.offsetTop + vv.height : window.innerHeight) - h;
+    }
+    kbar.style.transform = `translateY(${Math.round(y)}px)`;
   }
   function kbarState() {
     if (kbar.hidden) return;
@@ -1495,7 +1519,10 @@ const SpecEditor = (el) => {
   });
   page.addEventListener("focus", () => showKbar(true));
   page.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== page.el) showKbar(false); }, 0));
-  document.addEventListener("selectionchange", () => { if (!kbar.hidden) kbarState(); });
+  document.addEventListener("selectionchange", () => { if (!kbar.hidden) { kbarState(); placeKbar(); } });
+  page.addEventListener("input", () => { if (!kbar.hidden) requestAnimationFrame(placeKbar); });
+  page.addEventListener("scroll", () => { if (!kbar.hidden) placeKbar(); });
+  window.addEventListener("resize", () => { if (!kbar.hidden) placeKbar(); });
   if (window.visualViewport) {
     visualViewport.addEventListener("resize", () => { if (!kbar.hidden) placeKbar(); });
     visualViewport.addEventListener("scroll", () => { if (!kbar.hidden) placeKbar(); });
