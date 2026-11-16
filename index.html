@@ -271,6 +271,40 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   border-radius: 2px;
 }
 .fmt[hidden] { display: none; }
+
+/* ---------- touch: formatting bar that rides on top of the on-screen keyboard ---------- */
+.kbar {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px max(8px, env(safe-area-inset-right, 0px)) 6px max(8px, env(safe-area-inset-left, 0px));
+  background: var(--paper);
+  border-top: 1px solid var(--code-line);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, .06);
+  will-change: transform;
+}
+.kbar[hidden] { display: none; }
+.kbar button {
+  appearance: none; border: 0; background: transparent; color: var(--ink);
+  flex: 1 1 0; min-width: 0; height: 38px; border-radius: 9px;
+  display: grid; place-items: center;
+  font: 600 14px var(--f-ui);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.kbar button:active { background: var(--chip-hover); }
+.kbar button[aria-pressed="true"] { color: var(--accent); background: var(--chip); }
+.kbar .i { font-style: italic; font-family: Georgia, serif; font-weight: 400; font-size: 16px; }
+.kbar .m { font-family: var(--f-code); font-size: 12px; }
+.kbar .sep { width: 1px; height: 22px; background: var(--code-line); flex: none; }
+.kbar svg { width: 19px; height: 19px; fill: currentColor; }
+.kbar svg path { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.kbar svg text { font-family: var(--f-ui); }
+body.touch-editing .bar { opacity: 0; pointer-events: none; }
+body.touch-editing #page { scroll-padding-bottom: 72px; }
 .fmt.below { transform: translate(-50%, 0); }
 .fmt.below::after { bottom: auto; top: -5px; }
 .fmt button {
@@ -342,6 +376,20 @@ body.typing .bar:hover, body.typing .bar:focus-within { opacity: 1; }
   <span class="sep" aria-hidden="true"></span>
   <button type="button" data-line="ul" title="Bullet list (Ctrl+Shift+8)" aria-label="Bullet list"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="5" r="1.6"/><circle cx="4" cy="10" r="1.6"/><circle cx="4" cy="15" r="1.6"/><path d="M8 5h9M8 10h9M8 15h9"/></svg></button>
   <button type="button" data-line="ol" title="Numbered list (Ctrl+Shift+7)" aria-label="Numbered list"><svg viewBox="0 0 20 20" aria-hidden="true"><text x="1.5" y="7" font-size="6" font-weight="700">1</text><text x="1.5" y="12.5" font-size="6" font-weight="700">2</text><text x="1.5" y="18" font-size="6" font-weight="700">3</text><path d="M8 5h9M8 10h9M8 15h9"/></svg></button>
+</div>
+<div class="kbar" id="kbar" role="toolbar" aria-label="Formatting" hidden>
+  <button type="button" data-k="h1" aria-label="Heading 1">H1</button>
+  <button type="button" data-k="h2" aria-label="Heading 2">H2</button>
+  <button type="button" data-k="h3" aria-label="Heading 3">H3</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-k="ul" aria-label="Bullet list"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="5" r="1.6"/><circle cx="4" cy="10" r="1.6"/><circle cx="4" cy="15" r="1.6"/><path d="M8 5h9M8 10h9M8 15h9"/></svg></button>
+  <button type="button" data-k="ol" aria-label="Numbered list"><svg viewBox="0 0 20 20" aria-hidden="true"><text x="1.5" y="7" font-size="6" font-weight="700">1</text><text x="1.5" y="12.5" font-size="6" font-weight="700">2</text><text x="1.5" y="18" font-size="6" font-weight="700">3</text><path d="M8 5h9M8 10h9M8 15h9"/></svg></button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-k="*" class="b" aria-label="Bold">B</button>
+  <button type="button" data-k="_" class="i" aria-label="Italic">I</button>
+  <button type="button" data-k="code" class="m" aria-label="Code">&lt;/&gt;</button>
+  <span class="sep" aria-hidden="true"></span>
+  <button type="button" data-k="done" aria-label="Hide keyboard"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5"/></svg></button>
 </div>
 <div class="toast" id="toast" role="status"></div>
 
@@ -1152,8 +1200,19 @@ const SpecEditor = (el) => {
   }
 
   function toggle(mark) {
-    const a = page.selectionStart, b = page.selectionEnd;
-    if (a === b) return;
+    let a = page.selectionStart, b = page.selectionEnd;
+    if (a === b) {
+      const v = page.value, W = /[\p{L}\p{N}_'’-]/u;
+      let s = a, e = a;
+      while (s > 0 && W.test(v[s - 1])) s--;
+      while (e < v.length && W.test(v[e])) e++;
+      if (s === e) { // no word here: type between a fresh pair of markers
+        replaceRange(a, a, mark + mark);
+        page.setSelectionRange(a + mark.length, a + mark.length);
+        return;
+      }
+      page.setSelectionRange(s, e); a = s; b = e;
+    }
     const n = mark.length, v = page.value, state = wrapState(mark);
     if (state === "inside") {
       const inner = v.slice(a + n, b - n);
@@ -1186,8 +1245,12 @@ const SpecEditor = (el) => {
       page.setSelectionRange(inBlock.start, inBlock.start + code.length);
       return showFmt();
     }
-    if (a === b) return;
     const ls = v.lastIndexOf("\n", a - 1) + 1;
+    if (a === b) {
+      let le0 = v.indexOf("\n", a); if (le0 === -1) le0 = v.length;
+      if (!v.slice(ls, le0).trim()) { replaceRange(ls, le0, "```\n\n```"); page.setSelectionRange(ls + 4, ls + 4); return; }
+      page.setSelectionRange(ls, le0); return toggleCode();
+    }
     let le = v.indexOf("\n", b - (v[b - 1] === "\n" ? 1 : 0)); if (le === -1) le = v.length;
     const sel = v.slice(a, b);
     const wholeLines = sel.includes("\n") || (a <= ls + (v.slice(ls, a).match(/^\s*/) || [""])[0].length && b >= le);
@@ -1204,6 +1267,7 @@ const SpecEditor = (el) => {
 
   function hideFmt() { fmt.hidden = true; }
   function showFmt() {
+    if (matchMedia("(hover: none) and (pointer: coarse)").matches) return hideFmt();
     const a = page.selectionStart, b = page.selectionEnd;
     if (a === b || document.activeElement !== page.el && !fmt.contains(document.activeElement)) return hideFmt();
     const start = caretXY(a), end = caretXY(Math.max(a, b - 1));
@@ -1385,6 +1449,58 @@ const SpecEditor = (el) => {
     if (mark) { e.preventDefault(); toggle(mark); }
     else if (e.shiftKey && k === "m") { e.preventDefault(); toggleCode(); }
   });
+
+  // ---------- touch formatting bar ----------
+  // Phones and tablets get a bar above the keyboard instead of the selection popup,
+  // which fights with the system's own copy/paste menu.
+  const coarse = matchMedia("(hover: none) and (pointer: coarse)");
+  const kbar = document.getElementById("kbar");
+  const kButtons = [...kbar.querySelectorAll("button")];
+  const isTouch = () => coarse.matches;
+  function placeKbar() {
+    const vv = window.visualViewport;
+    const h = kbar.offsetHeight;
+    const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    kbar.style.transform = `translateY(${Math.round(bottom - h)}px)`;
+  }
+  function kbarState() {
+    if (kbar.hidden) return;
+    const inCode = !!page.codeBlockAt(page.selectionStart);
+    kButtons.forEach(btn => {
+      const k = btn.dataset.k;
+      const on = k === "code" ? inCode : /^(h[123]|ul|ol)$/.test(k) ? lineState(k) : k === "done" ? false : !!wrapState(k);
+      btn.setAttribute("aria-pressed", String(on));
+    });
+  }
+  function showKbar(show) {
+    const on = show && isTouch();
+    kbar.hidden = !on;
+    document.body.classList.toggle("touch-editing", on);
+    if (on) { placeKbar(); kbarState(); }
+  }
+  function kAction(k) {
+    if (k === "done") { page.el.blur(); return; }
+    if (/^(h[123]|ul|ol)$/.test(k)) applyLine(k);
+    else if (k === "code") toggleCode();
+    else toggle(k);
+    hideFmt();
+    kbarState();
+  }
+  let touchHandled = false;
+  kButtons.forEach(btn => {
+    // act on touchstart and cancel it, so the editor keeps focus and the keyboard stays up
+    btn.addEventListener("touchstart", e => { e.preventDefault(); touchHandled = true; kAction(btn.dataset.k); }, { passive: false });
+    btn.addEventListener("mousedown", e => e.preventDefault());
+    btn.addEventListener("click", () => { if (touchHandled) { touchHandled = false; return; } kAction(btn.dataset.k); });
+  });
+  page.addEventListener("focus", () => showKbar(true));
+  page.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== page.el) showKbar(false); }, 0));
+  document.addEventListener("selectionchange", () => { if (!kbar.hidden) kbarState(); });
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", () => { if (!kbar.hidden) placeKbar(); });
+    visualViewport.addEventListener("scroll", () => { if (!kbar.hidden) placeKbar(); });
+  }
+  coarse.addEventListener?.("change", () => showKbar(document.activeElement === page.el));
 
   // Ctrl/⌘+S downloads instead of the browser's "save page" dialog
   document.addEventListener("keydown", e => {
